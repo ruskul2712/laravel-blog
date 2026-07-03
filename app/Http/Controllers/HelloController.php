@@ -6,7 +6,8 @@ use Illuminate\Http\Request;
 
 class HelloController extends Controller
 {
-    public function index() {
-        print 'My name is Rustam';
+    public function index()
+    {
+        return view('posts.about');
     }
 }
