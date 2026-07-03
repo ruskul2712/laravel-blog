@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Post;
 use Illuminate\Http\Request;
 
+
 class PostController extends Controller
 {
     public function index()
@@ -20,5 +21,13 @@ class PostController extends Controller
         $postsCount = Post::count();
 
         return view('posts.home', compact('latestPosts', 'postsCount'));
+    }
+    public function store() {
+      Post::create([
+          'title' => 'My first post',
+          'description' => 'This is my first post',
+          'user_id' => 1,
+      ]);
+      return 'post created';
     }
 }

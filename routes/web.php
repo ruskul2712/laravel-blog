@@ -8,3 +8,4 @@ Route::get('/', [PostController::class, 'home']);
 Route::get('/post', [PostController::class, 'index']);
 
 Route::get('/my-name', [HelloController::class, 'index']);
+Route::get('/posts/create-test', [postController::class, 'index']);
