@@ -22,12 +22,5 @@ class PostController extends Controller
 
         return view('posts.home', compact('latestPosts', 'postsCount'));
     }
-    public function store() {
-      Post::create([
-          'title' => 'My first post',
-          'description' => 'This is my first post',
-          'user_id' => 1,
-      ]);
-      return 'post created';
-    }
+
 }
