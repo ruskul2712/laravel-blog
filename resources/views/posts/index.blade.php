@@ -12,6 +12,7 @@
     <meta name="viewport"
           content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
@@ -76,68 +77,87 @@
             </div>
         </div>
 
-        @foreach($posts as $post)
-            <article class="post-card">
+        @forelse($posts as $post)
+            <article class="post-card" id="post-{{ $post->id }}" data-post-id="{{ $post->id }}" style="--delay: {{ min($loop->index * 0.05, 0.4) }}s">
                 <div class="post-card-head">
-                    <div class="avatar-circle">Р</div>
+                    <div class="avatar-circle">{{ mb_strtoupper(mb_substr($post->user->name ?? 'П', 0, 1)) }}</div>
 
                     <div class="post-head-meta">
-                        <div class="post-username">
-                            {{ $post->title }}
-                        </div>
+                        <div class="post-username">{{ $post->user->name ?? 'Пользователь' }}</div>
+                        <div class="post-time">{{ $post->created_at->diffForHumans() }}</div>
                     </div>
-                </div>
 
-                <div class="post-caption">
-                    {{ $post->description }}
-                </div>
-            </article>
-        @endforeach
-            {{-- Post 4 — no comments yet --}}
-            <article class="post-card" id="post-4" style="--delay: .24s">
-                <div class="post-card-head">
-                    <div class="avatar-circle">М</div>
-                    <div class="post-head-meta">
-                        <div class="post-username">marina.bakes</div>
-                        <div class="post-time">1 д</div>
-                    </div>
                     <div class="post-menu-wrap">
                         <button type="button" class="icon-btn post-menu-trigger">⋯</button>
                         <div class="post-menu-dropdown">
-                            <button type="button" class="post-menu-edit">✏️ Редактировать</button>
+                            <button type="button" class="post-menu-edit" data-title="{{ $post->title }}" data-description="{{ $post->description }}">✏️ Редактировать</button>
                             <button type="button" class="post-menu-delete danger-item">🗑️ Удалить</button>
                         </div>
                     </div>
                 </div>
-                <div class="post-media" style="background: linear-gradient(135deg,#f7971e,#ffd200);">🍰</div>
+
+                @if($post->image)
+                    <div class="post-media">
+                        <img src="{{ $post->imageUrl() }}" alt="{{ $post->title }}" style="width:100%; height:100%; object-fit:cover;">
+                    </div>
+                @endif
+
                 <div class="post-actions">
-                    <button type="button" class="icon-btn like-btn">🤍</button>
+                    <button type="button" class="icon-btn like-btn {{ in_array($post->id, $likedPostIds) ? 'liked' : '' }}">{{ in_array($post->id, $likedPostIds) ? '❤️' : '🤍' }}</button>
                     <button type="button" class="icon-btn comment-focus-btn">💬</button>
-                    <button type="button" class="icon-btn">📤</button>
+                    <button type="button" class="icon-btn repost-btn {{ in_array($post->id, $repostedPostIds) ? 'reposted' : '' }}" title="Репостнуть">📤</button>
                     <span class="spacer"></span>
-                    <button type="button" class="icon-btn bookmark-btn">🔖</button>
+                    <button type="button" class="icon-btn bookmark-btn {{ in_array($post->id, $bookmarkedPostIds) ? 'saved' : '' }}">{{ in_array($post->id, $bookmarkedPostIds) ? '📌' : '🔖' }}</button>
                 </div>
-                <div class="post-likes">Нравится: <span class="like-count" data-count="210">210</span></div>
+
+                <div class="post-likes">
+                    Нравится: <span class="like-count">{{ $post->likes_count }}</span>
+                    <span class="stat-sep">·</span>
+                    Репостов: <span class="repost-count">{{ $post->reposts_count }}</span>
+                </div>
+
                 <div class="post-caption">
-                    <span class="cap-username">marina.bakes</span><span class="cap-text">Испекла шарлотку по бабушкиному рецепту 🍎🥧</span>
+                    <span class="cap-username">{{ $post->user->name ?? 'Пользователь' }}</span><span class="cap-text"><strong class="cap-title">{{ $post->title }}</strong> {{ $post->description }}</span>
                 </div>
+
                 <div class="post-comments">
-                    <p class="no-comments-hint">Комментариев пока нет — будьте первым.</p>
+                    @forelse($post->comments as $comment)
+                        <div class="comment-row" data-comment-id="{{ $comment->id }}">
+                            <div class="avatar-circle">{{ mb_strtoupper(mb_substr($comment->user->name ?? 'П', 0, 1)) }}</div>
+                            <div class="comment-body">
+                                <div class="comment-text-line">
+                                    <span class="c-username">{{ $comment->user->name ?? 'Пользователь' }}</span><span class="c-text">{{ $comment->body }}</span>
+                                    <div class="comment-time">{{ $comment->created_at->diffForHumans() }}</div>
+                                </div>
+                                <form class="comment-edit-form">
+                                    <input type="text" value="{{ $comment->body }}" placeholder=" ">
+                                    <button type="button" class="btn btn-primary btn-sm comment-save-btn">Сохранить</button>
+                                    <button type="button" class="btn btn-ghost btn-sm comment-cancel-btn">Отмена</button>
+                                </form>
+                            </div>
+                            <div class="comment-tools">
+                                <button type="button" class="comment-edit-btn" title="Редактировать">✏️</button>
+                                <button type="button" class="comment-delete-btn" title="Удалить">🗑️</button>
+                            </div>
+                        </div>
+                    @empty
+                        <p class="no-comments-hint">Комментариев пока нет — будьте первым.</p>
+                    @endforelse
                 </div>
+
                 <div class="add-comment-row">
                     <button type="button" class="emoji-pick">😊</button>
                     <input type="text" placeholder="Добавить комментарий...">
                     <button type="button" class="post-comment-btn" disabled>Опубликовать</button>
                 </div>
             </article>
-
-            @if($posts->count())
-                <div class="empty-state" style="margin-top: 8px;">
-                    <div class="empty-emoji">📝</div>
-                    <h3>{{ $posts->count() }} {{ $posts->count() == 1 ? 'запись' : 'записей' }} из старого блога</h3>
-                    <p>Демо-лента выше показывает новый формат Pulse. Старые текстовые посты пока не перенесены в новый вид.</p>
-                </div>
-            @endif
+        @empty
+            <div class="empty-state">
+                <div class="empty-emoji">📝</div>
+                <h3>Пока нет публикаций</h3>
+                <p>Станьте первым — поделитесь фото прямо сейчас.</p>
+            </div>
+        @endforelse
         </div>
     </div>
 
@@ -189,16 +209,21 @@
             <h3>Новая публикация</h3>
             <button type="button" class="modal-close" data-close-modal>✕</button>
         </div>
-        <form id="form-new-post">
+        <form id="form-new-post" action="{{ route('posts.store') }}" method="POST" enctype="multipart/form-data">
+            @csrf
             <div class="modal-body">
                 <div class="dropzone" id="composer-dropzone">
                     <div class="dz-icon">📷</div>
                     <div>Нажмите, чтобы выбрать фото или видео</div>
                 </div>
-                <input type="file" id="composer-file" accept="image/*,video/*" hidden>
+                <input type="file" id="composer-file" name="image" accept="image/*" hidden>
                 <div class="composer-preview" id="composer-preview"></div>
                 <div class="field">
-                    <textarea id="composer-caption" placeholder=" " rows="3"></textarea>
+                    <input type="text" id="composer-title" name="title" placeholder=" ">
+                    <label>Заголовок публикации</label>
+                </div>
+                <div class="field">
+                    <textarea id="composer-caption" name="description" placeholder=" " rows="3"></textarea>
                     <label>Подпись к публикации</label>
                 </div>
             </div>
@@ -219,6 +244,10 @@
         </div>
         <form id="form-edit-post">
             <div class="modal-body">
+                <div class="field">
+                    <input type="text" id="edit-post-title" placeholder=" ">
+                    <label>Заголовок публикации</label>
+                </div>
                 <div class="field">
                     <textarea id="edit-post-caption" placeholder=" " rows="3"></textarea>
                     <label>Подпись</label>

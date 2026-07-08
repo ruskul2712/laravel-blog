@@ -10,7 +10,7 @@
 <body>
 <h1>Create Post</h1>
 
-<form action="{{ route('posts.store') }}" method="POST">
+<form action="{{ route('posts.store') }}" method="POST" enctype="multipart/form-data">
     @csrf
 
     <div>
@@ -23,6 +23,13 @@
     <div>
         <label>Description</label><br>
         <textarea name="description"></textarea>
+    </div>
+
+    <br>
+
+    <div>
+        <label>Photo</label><br>
+        <input type="file" name="image" accept="image/*">
     </div>
 
     <br>

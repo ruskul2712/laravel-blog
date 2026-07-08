@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -36,5 +37,41 @@ class User extends Authenticatable
         return Attribute::make(
             get: fn () => $this->avatar ? asset('storage/'.$this->avatar) : null,
         );
+    }
+
+    /**
+     * There is no login system yet, so every action in the app (posting,
+     * liking, commenting, ...) is attributed to the first user in the
+     * database. Once real authentication is added, swap this for
+     * $request->user().
+     */
+    public static function current(): self
+    {
+        return static::firstOrFail();
+    }
+
+    public function posts(): HasMany
+    {
+        return $this->hasMany(Post::class);
+    }
+
+    public function comments(): HasMany
+    {
+        return $this->hasMany(Comment::class);
+    }
+
+    public function likes(): HasMany
+    {
+        return $this->hasMany(Like::class);
+    }
+
+    public function bookmarks(): HasMany
+    {
+        return $this->hasMany(Bookmark::class);
+    }
+
+    public function reposts(): HasMany
+    {
+        return $this->hasMany(Repost::class);
     }
 }

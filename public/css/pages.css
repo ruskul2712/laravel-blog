@@ -499,10 +499,21 @@
     color: var(--accent);
 }
 
+.repost-btn.reposted {
+    color: #17bf63;
+    animation: like-bounce 0.35s ease;
+}
+
 .post-likes {
     padding: 2px 14px 0;
     font-weight: 700;
     font-size: 0.86rem;
+}
+
+.post-likes .stat-sep {
+    margin: 0 4px;
+    color: var(--text-muted);
+    font-weight: 400;
 }
 
 .post-caption {

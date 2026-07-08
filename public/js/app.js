@@ -1,7 +1,8 @@
 /* =========================================================
-   Pulse — shared front-end behaviour (demo only, no backend).
-   Everything here is client-side: likes, comments, new posts
-   and deletions live only in the DOM/session and reset on reload.
+   Pulse — shared front-end behaviour.
+   Posts, likes, bookmarks, reposts and comments are persisted
+   through the Laravel backend (see routes/web.php); everything
+   else here (theme, modals, composer preview, ...) stays client-side.
    ========================================================= */
 (function () {
     'use strict';
@@ -17,6 +18,7 @@
         initPostMenus();
         initLikes();
         initBookmarks();
+        initReposts();
         initComments();
         initComposer();
         initProfileTabs();
@@ -26,6 +28,34 @@
         initConfirmModal();
         initAvatarPreview();
     });
+
+    /* ---------- Backend API helper ---------- */
+    function csrfToken() {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.content : '';
+    }
+
+    function apiRequest(url, method, data) {
+        return fetch(url, {
+            method,
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+            },
+            body: data === undefined ? undefined : JSON.stringify(data),
+        }).then(async (res) => {
+            if (!res.ok) {
+                let message = 'Что-то пошло не так, попробуйте ещё раз.';
+                try {
+                    const payload = await res.json();
+                    message = payload.message || message;
+                } catch (err) { /* response had no JSON body */ }
+                throw new Error(message);
+            }
+            return res.status === 204 ? null : res.json();
+        });
+    }
 
     /* ---------- Theme ---------- */
     function initThemeToggle() {
@@ -164,12 +194,13 @@
             const editBtn = e.target.closest('.post-menu-edit');
             if (editBtn) {
                 const card = editBtn.closest('.post-card');
-                const captionEl = card.querySelector('.cap-text');
+                const titleInput = document.getElementById('edit-post-title');
                 const textarea = document.getElementById('edit-post-caption');
                 const form = document.getElementById('form-edit-post');
-                textarea.value = captionEl ? captionEl.textContent.trim() : '';
+                titleInput.value = editBtn.dataset.title || '';
+                textarea.value = editBtn.dataset.description || '';
                 textarea.dispatchEvent(new Event('input'));
-                form.dataset.postId = card.id;
+                form.dataset.postId = card.dataset.postId;
                 openModal('modal-edit-post');
                 editBtn.closest('.post-menu-dropdown').classList.remove('open');
             }
@@ -179,10 +210,15 @@
                 const card = deleteBtn.closest('.post-card');
                 deleteBtn.closest('.post-menu-dropdown').classList.remove('open');
                 askConfirm('Удалить эту публикацию? Это действие нельзя отменить.', () => {
-                    card.style.transition = 'opacity .25s ease, transform .25s ease';
-                    card.style.opacity = '0';
-                    card.style.transform = 'scale(.96)';
-                    setTimeout(() => card.remove(), 250);
+                    apiRequest(`/posts/${card.dataset.postId}`, 'DELETE')
+                        .then(() => {
+                            card.style.transition = 'opacity .25s ease, transform .25s ease';
+                            card.style.opacity = '0';
+                            card.style.transform = 'scale(.96)';
+                            setTimeout(() => card.remove(), 250);
+                            showToast('Публикация удалена 🗑️');
+                        })
+                        .catch((err) => showToast(err.message));
                 });
             }
         });
@@ -191,14 +227,30 @@
         if (editForm) {
             editForm.addEventListener('submit', (e) => {
                 e.preventDefault();
-                const card = document.getElementById(editForm.dataset.postId);
-                const textarea = document.getElementById('edit-post-caption');
-                if (card) {
-                    const captionEl = card.querySelector('.cap-text');
-                    if (captionEl) captionEl.textContent = textarea.value.trim();
-                }
-                closeModal(document.getElementById('modal-edit-post'));
-                showToast('Публикация обновлена ✏️');
+                const postId = editForm.dataset.postId;
+                const card = document.querySelector(`.post-card[data-post-id="${postId}"]`);
+                const title = document.getElementById('edit-post-title').value.trim();
+                const description = document.getElementById('edit-post-caption').value.trim();
+
+                apiRequest(`/posts/${postId}`, 'PUT', { title, description })
+                    .then(({ post }) => {
+                        if (card) {
+                            const titleEl = card.querySelector('.cap-title');
+                            const captionEl = card.querySelector('.cap-text');
+                            if (titleEl) titleEl.textContent = post.title;
+                            if (captionEl) {
+                                captionEl.lastChild.textContent = ' ' + post.description;
+                            }
+                            const editBtn = card.querySelector('.post-menu-edit');
+                            if (editBtn) {
+                                editBtn.dataset.title = post.title;
+                                editBtn.dataset.description = post.description;
+                            }
+                        }
+                        closeModal(document.getElementById('modal-edit-post'));
+                        showToast('Публикация обновлена ✏️');
+                    })
+                    .catch((err) => showToast(err.message));
             });
         }
     }
@@ -223,15 +275,19 @@
     }
 
     function toggleLike(btn) {
+        if (btn.disabled) return;
         const card = btn.closest('.post-card');
         const countEl = card.querySelector('.post-likes .like-count');
-        let count = parseInt(countEl.dataset.count, 10) || 0;
 
-        const liked = btn.classList.toggle('liked');
-        btn.textContent = liked ? '❤️' : '🤍';
-        count += liked ? 1 : -1;
-        countEl.dataset.count = count;
-        countEl.textContent = count;
+        btn.disabled = true;
+        apiRequest(`/posts/${card.dataset.postId}/like`, 'POST')
+            .then(({ active, count }) => {
+                btn.classList.toggle('liked', active);
+                btn.textContent = active ? '❤️' : '🤍';
+                countEl.textContent = count;
+            })
+            .catch((err) => showToast(err.message))
+            .finally(() => { btn.disabled = false; });
     }
 
     function burstHeart(media) {
@@ -247,13 +303,42 @@
         heart.classList.add('animate');
     }
 
-    /* ---------- Bookmarks ---------- */
+    /* ---------- Bookmarks (save) ---------- */
     function initBookmarks() {
         document.addEventListener('click', (e) => {
             const btn = e.target.closest('.bookmark-btn');
-            if (!btn) return;
-            const saved = btn.classList.toggle('saved');
-            btn.textContent = saved ? '📌' : '🔖';
+            if (!btn || btn.disabled) return;
+            const card = btn.closest('.post-card');
+
+            btn.disabled = true;
+            apiRequest(`/posts/${card.dataset.postId}/bookmark`, 'POST')
+                .then(({ active }) => {
+                    btn.classList.toggle('saved', active);
+                    btn.textContent = active ? '📌' : '🔖';
+                    showToast(active ? 'Публикация сохранена 🔖' : 'Убрано из сохранённого');
+                })
+                .catch((err) => showToast(err.message))
+                .finally(() => { btn.disabled = false; });
+        });
+    }
+
+    /* ---------- Reposts (share) ---------- */
+    function initReposts() {
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('.repost-btn');
+            if (!btn || btn.disabled) return;
+            const card = btn.closest('.post-card');
+            const countEl = card.querySelector('.post-likes .repost-count');
+
+            btn.disabled = true;
+            apiRequest(`/posts/${card.dataset.postId}/repost`, 'POST')
+                .then(({ active, count }) => {
+                    btn.classList.toggle('reposted', active);
+                    if (countEl) countEl.textContent = count;
+                    showToast(active ? 'Публикация репостнута 📤' : 'Репост отменён');
+                })
+                .catch((err) => showToast(err.message))
+                .finally(() => { btn.disabled = false; });
         });
     }
 
@@ -318,9 +403,15 @@
                 const input = row.querySelector('.comment-edit-form input');
                 const value = input.value.trim();
                 if (value) {
-                    row.querySelector('.c-text').textContent = value;
+                    apiRequest(`/comments/${row.dataset.commentId}`, 'PUT', { body: value })
+                        .then(({ comment }) => {
+                            row.querySelector('.c-text').textContent = comment.body;
+                            row.classList.remove('editing');
+                        })
+                        .catch((err) => showToast(err.message));
+                } else {
+                    row.classList.remove('editing');
                 }
-                row.classList.remove('editing');
             }
 
             const deleteBtn = e.target.closest('.comment-delete-btn');
@@ -328,11 +419,15 @@
                 const row = deleteBtn.closest('.comment-row');
                 const list = row.closest('.post-comments');
                 askConfirm('Удалить этот комментарий?', () => {
-                    row.classList.add('removing');
-                    setTimeout(() => {
-                        row.remove();
-                        refreshEmptyCommentHint(list);
-                    }, 220);
+                    apiRequest(`/comments/${row.dataset.commentId}`, 'DELETE')
+                        .then(() => {
+                            row.classList.add('removing');
+                            setTimeout(() => {
+                                row.remove();
+                                refreshEmptyCommentHint(list);
+                            }, 220);
+                        })
+                        .catch((err) => showToast(err.message));
                 });
             }
         });
@@ -350,34 +445,47 @@
         const text = input.value.trim();
         if (!text) return;
 
-        const list = row.closest('.post-card').querySelector('.post-comments');
-        const hint = list.querySelector('.no-comments-hint');
-        if (hint) hint.remove();
+        const card = row.closest('.post-card');
+        const postBtn = row.querySelector('.post-comment-btn');
+        input.disabled = true;
+        postBtn.disabled = true;
 
-        const comment = document.createElement('div');
-        comment.className = 'comment-row mine';
-        comment.innerHTML = `
-            <div class="avatar-circle">Вы</div>
-            <div class="comment-body">
-                <div class="comment-text-line">
-                    <span class="c-username">Вы</span><span class="c-text">${escapeHtml(text)}</span>
-                    <div class="comment-time">только что</div>
-                </div>
-                <form class="comment-edit-form">
-                    <input type="text" placeholder=" ">
-                    <button type="button" class="btn btn-primary btn-sm comment-save-btn">Сохранить</button>
-                    <button type="button" class="btn btn-ghost btn-sm comment-cancel-btn">Отмена</button>
-                </form>
-            </div>
-            <div class="comment-tools">
-                <button type="button" class="comment-edit-btn" title="Редактировать">✏️</button>
-                <button type="button" class="comment-delete-btn" title="Удалить">🗑️</button>
-            </div>
-        `;
-        list.appendChild(comment);
+        apiRequest(`/posts/${card.dataset.postId}/comments`, 'POST', { body: text })
+            .then(({ comment }) => {
+                const list = card.querySelector('.post-comments');
+                const hint = list.querySelector('.no-comments-hint');
+                if (hint) hint.remove();
 
-        input.value = '';
-        row.querySelector('.post-comment-btn').disabled = true;
+                const row = document.createElement('div');
+                row.className = 'comment-row';
+                row.dataset.commentId = comment.id;
+                row.innerHTML = `
+                    <div class="avatar-circle">${escapeHtml(comment.initial)}</div>
+                    <div class="comment-body">
+                        <div class="comment-text-line">
+                            <span class="c-username">${escapeHtml(comment.username)}</span><span class="c-text">${escapeHtml(comment.body)}</span>
+                            <div class="comment-time">${escapeHtml(comment.created_at)}</div>
+                        </div>
+                        <form class="comment-edit-form">
+                            <input type="text" value="${escapeHtml(comment.body)}" placeholder=" ">
+                            <button type="button" class="btn btn-primary btn-sm comment-save-btn">Сохранить</button>
+                            <button type="button" class="btn btn-ghost btn-sm comment-cancel-btn">Отмена</button>
+                        </form>
+                    </div>
+                    <div class="comment-tools">
+                        <button type="button" class="comment-edit-btn" title="Редактировать">✏️</button>
+                        <button type="button" class="comment-delete-btn" title="Удалить">🗑️</button>
+                    </div>
+                `;
+                list.appendChild(row);
+
+                input.value = '';
+            })
+            .catch((err) => showToast(err.message))
+            .finally(() => {
+                input.disabled = false;
+                postBtn.disabled = input.value.trim().length === 0;
+            });
     }
 
     function refreshEmptyCommentHint(list) {
@@ -449,77 +557,8 @@
             currentUrl = null;
         }
 
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const captionInput = document.getElementById('composer-caption');
-            const caption = captionInput.value.trim();
-
-            if (!currentUrl) {
-                showToast('Сначала выберите фото или видео 📷');
-                return;
-            }
-
-            prependNewPost({ type: currentType, url: currentUrl, emoji: currentEmoji, caption });
-
-            captionInput.value = '';
-            captionInput.dispatchEvent(new Event('input'));
-            clearPreview();
-            currentEmoji = MOODS[Math.floor(Math.random() * MOODS.length)];
-            closeModal(document.getElementById('modal-new-post'));
-            showToast('Опубликовано! 🎉');
-        });
-    }
-
-    function prependNewPost({ type, url, caption }) {
-        const feed = document.querySelector('.feed');
-        if (!feed) return;
-
-        const id = 'post-new-' + Date.now();
-        const mediaInner = type === 'video'
-            ? `<video src="${url}" muted loop playsinline style="width:100%;height:100%;object-fit:cover;"></video>
-               <div class="play-overlay"><div class="play-btn">▶</div></div>
-               <span class="video-badge">Видео</span>`
-            : `<img src="${url}" style="width:100%;height:100%;object-fit:cover;" alt="">`;
-
-        const card = document.createElement('article');
-        card.className = 'post-card';
-        card.id = id;
-        card.innerHTML = `
-            <div class="post-card-head">
-                <div class="avatar-circle">Вы</div>
-                <div class="post-head-meta">
-                    <div class="post-username">Вы</div>
-                    <div class="post-time">только что</div>
-                </div>
-                <div class="post-menu-wrap">
-                    <button type="button" class="icon-btn post-menu-trigger">⋯</button>
-                    <div class="post-menu-dropdown">
-                        <button type="button" class="post-menu-edit">✏️ Редактировать</button>
-                        <button type="button" class="post-menu-delete danger-item">🗑️ Удалить</button>
-                    </div>
-                </div>
-            </div>
-            <div class="post-media">${mediaInner}</div>
-            <div class="post-actions">
-                <button type="button" class="icon-btn like-btn">🤍</button>
-                <button type="button" class="icon-btn comment-focus-btn">💬</button>
-                <button type="button" class="icon-btn">📤</button>
-                <span class="spacer"></span>
-                <button type="button" class="icon-btn bookmark-btn">🔖</button>
-            </div>
-            <div class="post-likes">Нравится: <span class="like-count" data-count="0">0</span></div>
-            <div class="post-caption"><span class="cap-username">Вы</span><span class="cap-text">${escapeHtml(caption || 'Без подписи')}</span></div>
-            <div class="post-comments">
-                <p class="no-comments-hint">Комментариев пока нет — будьте первым.</p>
-            </div>
-            <div class="add-comment-row">
-                <button type="button" class="emoji-pick">😊</button>
-                <input type="text" placeholder="Добавить комментарий...">
-                <button type="button" class="post-comment-btn" disabled>Опубликовать</button>
-            </div>
-        `;
-
-        feed.insertBefore(card, feed.firstChild);
+        // Form posts for real to Laravel (see action/method/@csrf on #form-new-post),
+        // so the browser just submits normally and the page reloads with the new post.
     }
 
     /* ---------- Profile tabs ---------- */
