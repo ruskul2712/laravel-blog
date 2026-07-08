@@ -24,6 +24,7 @@
         initVerifiedBadge();
         initStatCounters();
         initConfirmModal();
+        initAvatarPreview();
     });
 
     /* ---------- Theme ---------- */
@@ -568,6 +569,23 @@
         if (!el) return;
         const value = Math.max(0, (parseInt(el.textContent, 10) || 0) + delta);
         el.textContent = value;
+    }
+
+    /* ---------- Profile settings: avatar upload preview ---------- */
+    function initAvatarPreview() {
+        const input = document.getElementById('avatar-input');
+        if (!input) return;
+
+        input.addEventListener('change', () => {
+            const file = input.files[0];
+            if (!file) return;
+
+            const img = document.getElementById('avatar-preview-img');
+            const letter = document.getElementById('avatar-preview-letter');
+            img.src = URL.createObjectURL(file);
+            img.style.display = 'block';
+            if (letter) letter.style.display = 'none';
+        });
     }
 
     /* ---------- Verified badge easter egg ---------- */

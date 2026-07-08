@@ -34,7 +34,7 @@
         <nav class="main-nav">
             <a href="/" class="nav-link active">Главная</a>
             <a href="/post" class="nav-link">Лента</a>
-            <a href="/my-name" class="nav-link">Профиль</a>
+            <a href="/hello" class="nav-link">Профиль</a>
         </nav>
         <div class="header-icons">
             <button type="button" class="icon-btn theme-toggle" title="Сменить тему">
@@ -137,7 +137,20 @@
 
 <footer class="site-footer">
     <div class="container footer-inner">
-        <p>&copy; {{ date('Y') }} Pulse. Сделано с ❤️ на Laravel.</p>
+        <p>&copy; {{ date('Y') }} Блог Кульжанова Рустама</p>
+
+        <div class="footer-contacts">
+            наш номер телефона
+            <a href="tel:+77761550530" class="footer-contact">📞 +7 (777) 155-05-30</a>
+            наша электронная почта
+            <a href="ruskul2712@gmail.com" class="footer-contact">✉️ ruskul2712@gmail.com</a>
+        </div>
+
+        <div class="footer-social">
+            <span class="footer-social-label">Мы в социальных сетях:</span>
+
+            <a href="https://www.instagram.com/rustamkulzhanov/" class="footer-social-link" target="_blank" rel="noopener" title="Instagram">📷 Instagram</a>
+        </div>
     </div>
 </footer>
 

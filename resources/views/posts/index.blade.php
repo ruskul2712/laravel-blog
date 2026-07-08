@@ -17,7 +17,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('css/style.css') }}">
     <link rel="stylesheet" href="{{ asset('css/pages.css') }}">
-    <title>Pulse — Лента</title>
+    <title>Posts</title>
 </head>
 <body>
 
@@ -34,7 +34,7 @@
         <nav class="main-nav">
             <a href="/" class="nav-link">Главная</a>
             <a href="/post" class="nav-link active">Лента</a>
-            <a href="/my-name" class="nav-link">Профиль</a>
+            <a href="/hello" class="nav-link">Профиль</a>
         </nav>
         <div class="header-icons">
             <button type="button" class="icon-btn" data-open-modal="modal-new-post" title="Новая публикация">➕</button>
@@ -42,7 +42,7 @@
             <button type="button" class="icon-btn theme-toggle" title="Сменить тему">
                 <span class="icon-light">🌙</span><span class="icon-dark">☀️</span>
             </button>
-            <a href="/my-name" class="avatar-btn" title="Профиль">Р</a>
+            <a href="/hello" class="avatar-btn" title="Профиль">Р</a>
         </div>
     </div>
 </header>
@@ -76,210 +76,23 @@
             </div>
         </div>
 
-        <div class="feed">
-            {{-- Post 1 --}}
-            <article class="post-card" id="post-1" style="--delay: 0s">
+        @foreach($posts as $post)
+            <article class="post-card">
                 <div class="post-card-head">
                     <div class="avatar-circle">Р</div>
+
                     <div class="post-head-meta">
-                        <div class="post-username">Рустам <span class="verified-badge" title="Подтверждённый аккаунт">✅</span></div>
-                        <div class="post-time">2 ч · Алматы</div>
-                    </div>
-                    <div class="post-menu-wrap">
-                        <button type="button" class="icon-btn post-menu-trigger">⋯</button>
-                        <div class="post-menu-dropdown">
-                            <button type="button" class="post-menu-edit">✏️ Редактировать</button>
-                            <button type="button" class="post-menu-delete danger-item">🗑️ Удалить</button>
+                        <div class="post-username">
+                            {{ $post->title }}
                         </div>
                     </div>
                 </div>
-                <div class="post-media" style="background: linear-gradient(135deg,#1f2937,#405de6);">💻</div>
-                <div class="post-actions">
-                    <button type="button" class="icon-btn like-btn">🤍</button>
-                    <button type="button" class="icon-btn comment-focus-btn">💬</button>
-                    <button type="button" class="icon-btn">📤</button>
-                    <span class="spacer"></span>
-                    <button type="button" class="icon-btn bookmark-btn">🔖</button>
-                </div>
-                <div class="post-likes">Нравится: <span class="like-count" data-count="128">128</span></div>
+
                 <div class="post-caption">
-                    <span class="cap-username">Рустам</span><span class="cap-text">Ночной дедлайн, но кофе спасает ☕</span>
-                </div>
-                <div class="post-tags">#laravel #devlife #pulse</div>
-                <div class="post-comments">
-                    <div class="comment-row">
-                        <div class="avatar-circle">А</div>
-                        <div class="comment-body">
-                            <div class="comment-text-line">
-                                <span class="c-username">anna</span><span class="c-text">Красивый сетап!</span>
-                                <div class="comment-time">1 ч</div>
-                            </div>
-                            <form class="comment-edit-form">
-                                <input type="text" placeholder=" ">
-                                <button type="button" class="btn btn-primary btn-sm comment-save-btn">Сохранить</button>
-                                <button type="button" class="btn btn-ghost btn-sm comment-cancel-btn">Отмена</button>
-                            </form>
-                        </div>
-                        <div class="comment-tools">
-                            <button type="button" class="comment-delete-btn" title="Удалить">🗑️</button>
-                        </div>
-                    </div>
-                    <div class="comment-row mine">
-                        <div class="avatar-circle">Вы</div>
-                        <div class="comment-body">
-                            <div class="comment-text-line">
-                                <span class="c-username">Вы</span><span class="c-text">Какая клавиатура, подскажи?</span>
-                                <div class="comment-time">40 мин</div>
-                            </div>
-                            <form class="comment-edit-form">
-                                <input type="text" placeholder=" ">
-                                <button type="button" class="btn btn-primary btn-sm comment-save-btn">Сохранить</button>
-                                <button type="button" class="btn btn-ghost btn-sm comment-cancel-btn">Отмена</button>
-                            </form>
-                        </div>
-                        <div class="comment-tools">
-                            <button type="button" class="comment-edit-btn" title="Редактировать">✏️</button>
-                            <button type="button" class="comment-delete-btn" title="Удалить">🗑️</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="add-comment-row">
-                    <button type="button" class="emoji-pick">😊</button>
-                    <input type="text" placeholder="Добавить комментарий...">
-                    <button type="button" class="post-comment-btn" disabled>Опубликовать</button>
+                    {{ $post->description }}
                 </div>
             </article>
-
-            {{-- Post 2 --}}
-            <article class="post-card" id="post-2" style="--delay: .08s">
-                <div class="post-card-head">
-                    <div class="avatar-circle">А</div>
-                    <div class="post-head-meta">
-                        <div class="post-username">anna_sokolova</div>
-                        <div class="post-time">5 ч</div>
-                    </div>
-                    <div class="post-menu-wrap">
-                        <button type="button" class="icon-btn post-menu-trigger">⋯</button>
-                        <div class="post-menu-dropdown">
-                            <button type="button" class="post-menu-edit">✏️ Редактировать</button>
-                            <button type="button" class="post-menu-delete danger-item">🗑️ Удалить</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="post-media" style="background: linear-gradient(135deg,#fcaf45,#e1306c);">🌅</div>
-                <div class="post-actions">
-                    <button type="button" class="icon-btn like-btn liked">❤️</button>
-                    <button type="button" class="icon-btn comment-focus-btn">💬</button>
-                    <button type="button" class="icon-btn">📤</button>
-                    <span class="spacer"></span>
-                    <button type="button" class="icon-btn bookmark-btn">🔖</button>
-                </div>
-                <div class="post-likes">Нравится: <span class="like-count" data-count="342">342</span></div>
-                <div class="post-caption">
-                    <span class="cap-username">anna_sokolova</span><span class="cap-text">Рассвет на набережной сегодня был просто космос 🌇</span>
-                </div>
-                <div class="post-comments">
-                    <div class="comment-row mine">
-                        <div class="avatar-circle">Вы</div>
-                        <div class="comment-body">
-                            <div class="comment-text-line">
-                                <span class="c-username">Вы</span><span class="c-text">Обалденное фото!</span>
-                                <div class="comment-time">4 ч</div>
-                            </div>
-                            <form class="comment-edit-form">
-                                <input type="text" placeholder=" ">
-                                <button type="button" class="btn btn-primary btn-sm comment-save-btn">Сохранить</button>
-                                <button type="button" class="btn btn-ghost btn-sm comment-cancel-btn">Отмена</button>
-                            </form>
-                        </div>
-                        <div class="comment-tools">
-                            <button type="button" class="comment-edit-btn" title="Редактировать">✏️</button>
-                            <button type="button" class="comment-delete-btn" title="Удалить">🗑️</button>
-                        </div>
-                    </div>
-                    <div class="comment-row">
-                        <div class="avatar-circle">М</div>
-                        <div class="comment-body">
-                            <div class="comment-text-line">
-                                <span class="c-username">marina</span><span class="c-text">Куда бежала в такую рань? 😄</span>
-                                <div class="comment-time">3 ч</div>
-                            </div>
-                            <form class="comment-edit-form">
-                                <input type="text" placeholder=" ">
-                                <button type="button" class="btn btn-primary btn-sm comment-save-btn">Сохранить</button>
-                                <button type="button" class="btn btn-ghost btn-sm comment-cancel-btn">Отмена</button>
-                            </form>
-                        </div>
-                        <div class="comment-tools">
-                            <button type="button" class="comment-delete-btn" title="Удалить">🗑️</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="add-comment-row">
-                    <button type="button" class="emoji-pick">😊</button>
-                    <input type="text" placeholder="Добавить комментарий...">
-                    <button type="button" class="post-comment-btn" disabled>Опубликовать</button>
-                </div>
-            </article>
-
-            {{-- Post 3 — video --}}
-            <article class="post-card" id="post-3" style="--delay: .16s">
-                <div class="post-card-head">
-                    <div class="avatar-circle">И</div>
-                    <div class="post-head-meta">
-                        <div class="post-username">igor.plays</div>
-                        <div class="post-time">8 ч</div>
-                    </div>
-                    <div class="post-menu-wrap">
-                        <button type="button" class="icon-btn post-menu-trigger">⋯</button>
-                        <div class="post-menu-dropdown">
-                            <button type="button" class="post-menu-edit">✏️ Редактировать</button>
-                            <button type="button" class="post-menu-delete danger-item">🗑️ Удалить</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="post-media" style="background: linear-gradient(135deg,#0f2027,#2c5364);">
-                    🎮
-                    <div class="play-overlay"><div class="play-btn">▶</div></div>
-                    <span class="video-badge">Видео</span>
-                </div>
-                <div class="post-actions">
-                    <button type="button" class="icon-btn like-btn">🤍</button>
-                    <button type="button" class="icon-btn comment-focus-btn">💬</button>
-                    <button type="button" class="icon-btn">📤</button>
-                    <span class="spacer"></span>
-                    <button type="button" class="icon-btn bookmark-btn">🔖</button>
-                </div>
-                <div class="post-likes">Нравится: <span class="like-count" data-count="89">89</span></div>
-                <div class="post-caption">
-                    <span class="cap-username">igor.plays</span><span class="cap-text">Затащили рейтинговую катку до 3 ночи 😅🎮</span>
-                </div>
-                <div class="post-comments">
-                    <div class="comment-row">
-                        <div class="avatar-circle">Д</div>
-                        <div class="comment-body">
-                            <div class="comment-text-line">
-                                <span class="c-username">dima</span><span class="c-text">Легенда, го завтра ещё</span>
-                                <div class="comment-time">6 ч</div>
-                            </div>
-                            <form class="comment-edit-form">
-                                <input type="text" placeholder=" ">
-                                <button type="button" class="btn btn-primary btn-sm comment-save-btn">Сохранить</button>
-                                <button type="button" class="btn btn-ghost btn-sm comment-cancel-btn">Отмена</button>
-                            </form>
-                        </div>
-                        <div class="comment-tools">
-                            <button type="button" class="comment-delete-btn" title="Удалить">🗑️</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="add-comment-row">
-                    <button type="button" class="emoji-pick">😊</button>
-                    <input type="text" placeholder="Добавить комментарий...">
-                    <button type="button" class="post-comment-btn" disabled>Опубликовать</button>
-                </div>
-            </article>
-
+        @endforeach
             {{-- Post 4 — no comments yet --}}
             <article class="post-card" id="post-4" style="--delay: .24s">
                 <div class="post-card-head">

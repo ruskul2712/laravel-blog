@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Models\Post;
 
 
 
@@ -30,7 +31,16 @@ class PostTwoController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $request->validate([
+            'title'=>'required|max:255',
+            'description'=>'required',
+        ]);
+        Post::create([
+           'title'=>$request->title,
+            'description'=>$request->description,
+            'user_id'=>1,
+        ]);
+        return redirect()->route('posts.index');
     }
 
     /**

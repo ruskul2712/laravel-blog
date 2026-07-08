@@ -23,4 +23,5 @@ class PostController extends Controller
         return view('posts.home', compact('latestPosts', 'postsCount'));
     }
 
+
 }

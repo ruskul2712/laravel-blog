@@ -34,14 +34,14 @@
         <nav class="main-nav">
             <a href="/" class="nav-link">Главная</a>
             <a href="/post" class="nav-link">Лента</a>
-            <a href="/my-name" class="nav-link active">Профиль</a>
+            <a href="/hello" class="nav-link active">Профиль</a>
         </nav>
         <div class="header-icons">
-            <button type="button" class="icon-btn" title="Настройки">⚙️</button>
+            <button type="button" class="icon-btn" title="Настройки" data-open-modal="modal-edit-profile">⚙️</button>
             <button type="button" class="icon-btn theme-toggle" title="Сменить тему">
                 <span class="icon-light">🌙</span><span class="icon-dark">☀️</span>
             </button>
-            <a href="/my-name" class="avatar-btn" title="Профиль">Р</a>
+            <a href="/hello" class="avatar-btn" title="Профиль">{{ mb_strtoupper(mb_substr($user->name, 0, 1)) }}</a>
         </div>
     </div>
 </header>
@@ -49,15 +49,19 @@
 <main class="profile-shell">
     <section class="profile-header">
         <div class="avatar-circle profile-avatar">
-            👨‍💻
+            @if($user->avatar_url)
+                <img src="{{ $user->avatar_url }}" alt="{{ $user->name }}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">
+            @else
+                {{ mb_strtoupper(mb_substr($user->name, 0, 1)) }}
+            @endif
             <span class="profile-online-dot" title="В сети"></span>
         </div>
 
         <div class="profile-main">
             <div class="profile-name-row">
-                <span class="profile-username">rustam.dev <span class="verified-badge" title="Подтверждённый аккаунт">✅</span></span>
-                <button type="button" class="btn btn-ghost btn-sm">Редактировать профиль</button>
-                <button type="button" class="btn btn-ghost btn-sm" title="Настройки">⚙️</button>
+                <span class="profile-username">{{ $user->name }}</span>
+                <button type="button" class="btn btn-ghost btn-sm" data-open-modal="modal-edit-profile">✏️ Редактировать профиль</button>
+                <button type="button" class="btn btn-ghost btn-sm" title="Настройки" data-open-modal="modal-edit-profile">⚙️</button>
             </div>
 
             <div class="profile-stats">
@@ -66,10 +70,8 @@
                 <span class="profile-stat"><b class="stat-number" data-target="312">0</b>подписок</span>
             </div>
 
-            <div class="profile-fullname">Рустам</div>
-            <p class="profile-bio">Backend-разработчик, люблю Laravel, чистый код и хороший кофе. ☕️📦
-Делюсь моментами из жизни разработчика и не только.
-<a href="mailto:{{ config('mail.from.address', 'nurcha777@gmail.com') }}">✉️ nurcha777@gmail.com</a></p>
+            <p class="profile-bio">{{ $user->bio ?: 'Пока ничего не рассказал(а) о себе — самое время это исправить в настройках профиля.' }}
+<a href="mailto:{{ $user->email }}">✉️ {{ $user->email }}</a></p>
         </div>
     </section>
 
@@ -165,9 +167,75 @@
     </div>
 </div>
 
+{{-- Settings / edit profile modal --}}
+<div class="modal-overlay @if($errors->any()) open @endif" id="modal-edit-profile">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3>Настройки профиля</h3>
+            <button type="button" class="modal-close" data-close-modal>✕</button>
+        </div>
+        <form action="{{ route('profile.update') }}" method="POST" enctype="multipart/form-data">
+            @csrf
+            @method('PUT')
+            <div class="modal-body">
+                <div class="avatar-edit-row">
+                    <label for="avatar-input" class="avatar-circle profile-edit-avatar" title="Нажмите, чтобы выбрать фото">
+                        <img id="avatar-preview-img" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;{{ $user->avatar_url ? '' : 'display:none;' }}" @if($user->avatar_url) src="{{ $user->avatar_url }}" @endif>
+                        <span id="avatar-preview-letter" style="{{ $user->avatar_url ? 'display:none;' : '' }}">{{ mb_strtoupper(mb_substr($user->name, 0, 1)) }}</span>
+                        <span class="avatar-edit-overlay">Изменить фото</span>
+                    </label>
+                    <input type="file" name="avatar" id="avatar-input" accept="image/png,image/jpeg,image/webp" hidden>
+                </div>
+                @error('avatar')
+                    <p class="field-error" style="display:block;text-align:center;">{{ $message }}</p>
+                @enderror
+
+                <div class="field">
+                    <input type="text" name="name" placeholder=" " value="{{ old('name', $user->name) }}" required maxlength="255">
+                    <label>Имя</label>
+                </div>
+                @error('name')
+                    <p class="field-error" style="display:block;">{{ $message }}</p>
+                @enderror
+
+                <div class="field">
+                    <textarea name="bio" placeholder=" " rows="4" maxlength="500">{{ old('bio', $user->bio) }}</textarea>
+                    <label>О себе</label>
+                </div>
+                @error('bio')
+                    <p class="field-error" style="display:block;">{{ $message }}</p>
+                @enderror
+                <p class="field-hint">Эту фотографию, имя и описание увидят все, кто зайдёт в ваш профиль.</p>
+
+                <div class="field" style="margin-top: 22px;">
+                    <input type="email" value="{{ $user->email }}" disabled>
+                    <label style="top:5px;font-size:.68rem;font-weight:700;">Email</label>
+                </div>
+                <p class="field-hint">Email пока нельзя изменить — эта настройка появится вместе со входом в аккаунт.</p>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-ghost" data-close-modal>Отмена</button>
+                <button type="submit" class="btn btn-gradient">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div id="app-toast" class="toast"></div>
 
 <script src="{{ asset('js/app.js') }}"></script>
+
+@if(session('status'))
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var toast = document.getElementById('app-toast');
+            if (!toast) return;
+            toast.textContent = @json(session('status'));
+            toast.classList.add('show');
+            setTimeout(function () { toast.classList.remove('show'); }, 2800);
+        });
+    </script>
+@endif
 
 </body>
 </html>

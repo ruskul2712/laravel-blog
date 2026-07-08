@@ -15,5 +15,8 @@ class Post extends Model
         'user_id'
 
     ];
-}
+    }
+
+
+
 
