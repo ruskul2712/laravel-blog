@@ -23,7 +23,10 @@ return new class extends Migration
 
             $table->unique(['post_id', 'user_id']);
         });
+
     }
+
+
 
     /**
      * Reverse the migrations.
