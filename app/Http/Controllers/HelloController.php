@@ -2,15 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
 use Illuminate\Http\Request;
 
 class HelloController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $user = User::firstOrFail();
+        $user = $request->user();
 
-        return view('posts.about', compact('user'));
+        $posts = $user->posts()
+            ->withCount(['likes', 'comments'])
+            ->latest()
+            ->get();
+
+        return view('posts.about', compact('user', 'posts'));
     }
 }

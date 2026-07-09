@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Comment;
 use App\Models\Post;
-use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -20,7 +19,7 @@ class CommentController extends Controller
         ]);
 
         $comment = $post->comments()->create([
-            'user_id' => User::current()->id,
+            'user_id' => $request->user()->id,
             'body' => $validated['body'],
         ]);
 

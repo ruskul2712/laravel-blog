@@ -17,9 +17,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('css/style.css') }}">
     <link rel="stylesheet" href="{{ asset('css/pages.css') }}">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Pulse — заходи и делись моментами</title>
 </head>
 <body>
+
+@php
+    $activeAuthTab = ($errors->has('name') || old('name') !== null) ? 'register' : ($authTab ?? 'login');
+@endphp
 
 <header class="site-header">
     <div class="container header-inner">
@@ -40,6 +45,7 @@
             <button type="button" class="icon-btn theme-toggle" title="Сменить тему">
                 <span class="icon-light">🌙</span><span class="icon-dark">☀️</span>
             </button>
+            @include('partials.header-auth')
         </div>
     </div>
 </header>
@@ -79,59 +85,88 @@
         </div>
     </div>
 
-    <div class="auth-panel">
-        <div class="auth-tabs">
-            <button type="button" class="auth-tab active" data-target="form-login">Вход</button>
-            <button type="button" class="auth-tab" data-target="form-register">Регистрация</button>
-            <span class="auth-tab-indicator"></span>
-        </div>
+    <div class="auth-panel" id="auth-panel">
+        @auth
+            <h2>С возвращением, {{ Auth::user()->name }} 👋</h2>
+            <p class="form-sub">Вы уже вошли в аккаунт как {{ Auth::user()->email }}</p>
 
-        <form id="form-login" class="auth-form active">
-            <h2>С возвращением 👋</h2>
-            <p class="form-sub">Войди, чтобы увидеть ленту друзей</p>
+            <a href="{{ route('post.feed') }}" class="btn btn-gradient btn-block">Перейти в ленту</a>
+            <a href="{{ route('profile.show') }}" class="btn btn-ghost btn-block" style="margin-top: 10px;">Мой профиль</a>
 
-            <div class="field">
-                <input type="email" placeholder=" " required>
-                <label>Email</label>
-            </div>
-            <div class="field">
-                <input type="password" placeholder=" " required>
-                <label>Пароль</label>
-            </div>
-
-            <div class="auth-remember">
-                <label><input type="checkbox"> Запомнить меня</label>
-                <a href="#">Забыли пароль?</a>
+            <form action="{{ route('logout') }}" method="POST" style="margin-top: 10px;">
+                @csrf
+                <button type="submit" class="btn btn-danger btn-block">Выйти</button>
+            </form>
+        @else
+            <div class="auth-tabs">
+                <button type="button" class="auth-tab {{ $activeAuthTab === 'login' ? 'active' : '' }}" data-target="form-login">Вход</button>
+                <button type="button" class="auth-tab {{ $activeAuthTab === 'register' ? 'active' : '' }}" data-target="form-register">Регистрация</button>
+                <span class="auth-tab-indicator {{ $activeAuthTab === 'register' ? 'to-register' : '' }}"></span>
             </div>
 
-            <button type="submit" class="btn btn-gradient btn-block">Войти</button>
-            <a href="/post" class="btn btn-ghost btn-block" style="margin-top: 10px;">Войти как гость</a>
+            <form id="form-login" class="auth-form {{ $activeAuthTab === 'login' ? 'active' : '' }}" action="{{ route('login.store') }}" method="POST">
+                @csrf
+                <h2>С возвращением 👋</h2>
+                <p class="form-sub">Войди, чтобы увидеть ленту друзей</p>
 
-            <p class="landing-footer-note">Нет аккаунта? <a href="#" data-switch-tab="form-register">Зарегистрироваться</a></p>
-        </form>
+                <div class="field">
+                    <input type="email" name="email" value="{{ old('email') }}" placeholder=" " required>
+                    <label>Email</label>
+                </div>
+                @error('email')
+                    <p class="field-error" style="display:block;">{{ $message }}</p>
+                @enderror
+                <div class="field">
+                    <input type="password" name="password" placeholder=" " required>
+                    <label>Пароль</label>
+                </div>
+                @error('password')
+                    <p class="field-error" style="display:block;">{{ $message }}</p>
+                @enderror
 
-        <form id="form-register" class="auth-form">
-            <h2>Создать аккаунт ✨</h2>
-            <p class="form-sub">Это займёт меньше минуты</p>
+                <div class="auth-remember">
+                    <label><input type="checkbox" name="remember" value="1"> Запомнить меня</label>
+                </div>
 
-            <div class="field">
-                <input type="text" placeholder=" " required>
-                <label>Имя пользователя</label>
-            </div>
-            <div class="field">
-                <input type="email" placeholder=" " required>
-                <label>Email</label>
-            </div>
-            <div class="field">
-                <input type="password" placeholder=" " required>
-                <label>Пароль</label>
-            </div>
+                <button type="submit" class="btn btn-gradient btn-block">Войти</button>
+                <a href="/post" class="btn btn-ghost btn-block" style="margin-top: 10px;">Войти как гость</a>
 
-            <button type="submit" class="btn btn-gradient btn-block">Зарегистрироваться</button>
-            <a href="/post" class="btn btn-ghost btn-block" style="margin-top: 10px;">Войти как гость</a>
+                <p class="landing-footer-note">Нет аккаунта? <a href="#" data-switch-tab="form-register">Зарегистрироваться</a></p>
+            </form>
 
-            <p class="landing-footer-note">Уже есть аккаунт? <a href="#" data-switch-tab="form-login">Войти</a></p>
-        </form>
+            <form id="form-register" class="auth-form {{ $activeAuthTab === 'register' ? 'active' : '' }}" action="{{ route('register.store') }}" method="POST">
+                @csrf
+                <h2>Создать аккаунт ✨</h2>
+                <p class="form-sub">Это займёт меньше минуты</p>
+
+                <div class="field">
+                    <input type="text" name="name" value="{{ old('name') }}" placeholder=" " required>
+                    <label>Имя пользователя</label>
+                </div>
+                @error('name')
+                    <p class="field-error" style="display:block;">{{ $message }}</p>
+                @enderror
+                <div class="field">
+                    <input type="email" name="email" value="{{ old('email') }}" placeholder=" " required>
+                    <label>Email</label>
+                </div>
+                @error('email')
+                    <p class="field-error" style="display:block;">{{ $message }}</p>
+                @enderror
+                <div class="field">
+                    <input type="password" name="password" placeholder=" " required>
+                    <label>Пароль</label>
+                </div>
+                @error('password')
+                    <p class="field-error" style="display:block;">{{ $message }}</p>
+                @enderror
+
+                <button type="submit" class="btn btn-gradient btn-block">Зарегистрироваться</button>
+                <a href="/post" class="btn btn-ghost btn-block" style="margin-top: 10px;">Войти как гость</a>
+
+                <p class="landing-footer-note">Уже есть аккаунт? <a href="#" data-switch-tab="form-login">Войти</a></p>
+            </form>
+        @endauth
     </div>
 </main>
 

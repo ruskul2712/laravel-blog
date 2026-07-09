@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -10,15 +9,11 @@ use Illuminate\Support\Facades\Storage;
 class ProfileController extends Controller
 {
     /**
-     * Update the profile (name, bio, avatar) of the demo user.
-     *
-     * There is no login system yet, so we always edit the first user in
-     * the database. Once real authentication is added, swap this for
-     * $request->user().
+     * Update the profile (name, bio, avatar) of the authenticated user.
      */
     public function update(Request $request): RedirectResponse
     {
-        $user = User::firstOrFail();
+        $user = $request->user();
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],

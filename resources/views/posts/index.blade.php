@@ -44,6 +44,7 @@
                 <span class="icon-light">🌙</span><span class="icon-dark">☀️</span>
             </button>
             <a href="/hello" class="avatar-btn" title="Профиль">Р</a>
+            @include('partials.header-auth')
         </div>
     </div>
 </header>

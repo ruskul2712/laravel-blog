@@ -163,13 +163,6 @@
                 if (tab) tab.click();
             });
         });
-
-        document.querySelectorAll('.auth-form').forEach((form) => {
-            form.addEventListener('submit', (e) => {
-                e.preventDefault();
-                showToast('Это демо-форма — бэкенда пока нет 🙂');
-            });
-        });
     }
 
     /* ---------- Post "..." menu (edit/delete) ---------- */

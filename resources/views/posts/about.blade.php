@@ -42,6 +42,7 @@
                 <span class="icon-light">🌙</span><span class="icon-dark">☀️</span>
             </button>
             <a href="/hello" class="avatar-btn" title="Профиль">{{ mb_strtoupper(mb_substr($user->name, 0, 1)) }}</a>
+            @include('partials.header-auth')
         </div>
     </div>
 </header>
@@ -65,9 +66,9 @@
             </div>
 
             <div class="profile-stats">
-                <span class="profile-stat"><b id="postsCount">6</b>публикаций</span>
-                <span class="profile-stat"><b class="stat-number" data-target="1284">0</b>подписчиков</span>
-                <span class="profile-stat"><b class="stat-number" data-target="312">0</b>подписок</span>
+                <span class="profile-stat"><b id="postsCount">{{ $posts->count() }}</b>публикаций</span>
+                <span class="profile-stat"><b class="stat-number" data-target="0">0</b>подписчиков</span>
+                <span class="profile-stat"><b class="stat-number" data-target="0">0</b>подписок</span>
             </div>
 
             <p class="profile-bio">{{ $user->bio ?: 'Пока ничего не рассказал(а) о себе — самое время это исправить в настройках профиля.' }}
@@ -82,57 +83,32 @@
     </nav>
 
     <div class="profile-tab-panel active" id="tab-posts">
-        <div class="post-grid">
-            <div class="grid-tile" style="background: linear-gradient(135deg,#1f2937,#405de6);">
-                💻
-                <div class="grid-tile-tools">
-                    <button type="button" class="grid-tile-edit" title="Редактировать">✏️</button>
-                    <button type="button" class="grid-tile-delete" title="Удалить">🗑️</button>
-                </div>
-                <div class="grid-overlay">❤️ 128 &nbsp; 💬 2</div>
+        @if($posts->isEmpty())
+            <div class="empty-state">
+                <div class="empty-emoji">📸</div>
+                <h3>Пока нет публикаций</h3>
+                <p>Опубликуйте что-нибудь в <a href="{{ route('post.feed') }}">ленте</a>, и это появится здесь.</p>
             </div>
-            <div class="grid-tile" style="background: linear-gradient(135deg,#0f2027,#2c5364);">
-                🎮
-                <span class="grid-tile-video-badge">▶</span>
-                <div class="grid-tile-tools">
-                    <button type="button" class="grid-tile-edit" title="Редактировать">✏️</button>
-                    <button type="button" class="grid-tile-delete" title="Удалить">🗑️</button>
-                </div>
-                <div class="grid-overlay">❤️ 89 &nbsp; 💬 1</div>
+        @else
+            <div class="post-grid">
+                @foreach($posts as $post)
+                    <div class="grid-tile" data-post-id="{{ $post->id }}"
+                         @if($post->imageUrl())
+                             style="background-image:url('{{ $post->imageUrl() }}');background-size:cover;background-position:center;"
+                         @else
+                             style="background: linear-gradient(135deg,#1f2937,#405de6);"
+                         @endif>
+                        @unless($post->imageUrl())
+                            📝
+                        @endunless
+                        <div class="grid-tile-tools">
+                            <a href="{{ route('post.feed') }}" class="grid-tile-edit" title="Редактировать в ленте">✏️</a>
+                        </div>
+                        <div class="grid-overlay">❤️ {{ $post->likes_count }} &nbsp; 💬 {{ $post->comments_count }}</div>
+                    </div>
+                @endforeach
             </div>
-            <div class="grid-tile" style="background: linear-gradient(135deg,#00b09b,#96c93d);">
-                🏔️
-                <div class="grid-tile-tools">
-                    <button type="button" class="grid-tile-edit" title="Редактировать">✏️</button>
-                    <button type="button" class="grid-tile-delete" title="Удалить">🗑️</button>
-                </div>
-                <div class="grid-overlay">❤️ 256 &nbsp; 💬 4</div>
-            </div>
-            <div class="grid-tile" style="background: linear-gradient(135deg,#7b4397,#dc2430);">
-                🎨
-                <div class="grid-tile-tools">
-                    <button type="button" class="grid-tile-edit" title="Редактировать">✏️</button>
-                    <button type="button" class="grid-tile-delete" title="Удалить">🗑️</button>
-                </div>
-                <div class="grid-overlay">❤️ 74 &nbsp; 💬 0</div>
-            </div>
-            <div class="grid-tile" style="background: linear-gradient(135deg,#f7971e,#ffd200);">
-                🍰
-                <div class="grid-tile-tools">
-                    <button type="button" class="grid-tile-edit" title="Редактировать">✏️</button>
-                    <button type="button" class="grid-tile-delete" title="Удалить">🗑️</button>
-                </div>
-                <div class="grid-overlay">❤️ 210 &nbsp; 💬 0</div>
-            </div>
-            <div class="grid-tile" style="background: linear-gradient(135deg,#4568dc,#b06ab3);">
-                🌊
-                <div class="grid-tile-tools">
-                    <button type="button" class="grid-tile-edit" title="Редактировать">✏️</button>
-                    <button type="button" class="grid-tile-delete" title="Удалить">🗑️</button>
-                </div>
-                <div class="grid-overlay">❤️ 163 &nbsp; 💬 3</div>
-            </div>
-        </div>
+        @endif
     </div>
 
     <div class="profile-tab-panel" id="tab-saved">

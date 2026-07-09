@@ -39,17 +39,6 @@ class User extends Authenticatable
         );
     }
 
-    /**
-     * There is no login system yet, so every action in the app (posting,
-     * liking, commenting, ...) is attributed to the first user in the
-     * database. Once real authentication is added, swap this for
-     * $request->user().
-     */
-    public static function current(): self
-    {
-        return static::firstOrFail();
-    }
-
     public function posts(): HasMany
     {
         return $this->hasMany(Post::class);

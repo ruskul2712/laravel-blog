@@ -6,17 +6,17 @@ use App\Models\Bookmark;
 use App\Models\Like;
 use App\Models\Post;
 use App\Models\Repost;
-use App\Models\User;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class PostInteractionController extends Controller
 {
     /**
      * Toggle a like on the post for the current user.
      */
-    public function toggleLike(Post $post): JsonResponse
+    public function toggleLike(Request $request, Post $post): JsonResponse
     {
-        $userId = User::current()->id;
+        $userId = $request->user()->id;
         $like = Like::where('post_id', $post->id)->where('user_id', $userId)->first();
 
         if ($like) {
@@ -36,9 +36,9 @@ class PostInteractionController extends Controller
     /**
      * Toggle a bookmark (save) on the post for the current user.
      */
-    public function toggleBookmark(Post $post): JsonResponse
+    public function toggleBookmark(Request $request, Post $post): JsonResponse
     {
-        $userId = User::current()->id;
+        $userId = $request->user()->id;
         $bookmark = Bookmark::where('post_id', $post->id)->where('user_id', $userId)->first();
 
         if ($bookmark) {
@@ -58,9 +58,9 @@ class PostInteractionController extends Controller
     /**
      * Toggle a repost (share) on the post for the current user.
      */
-    public function toggleRepost(Post $post): JsonResponse
+    public function toggleRepost(Request $request, Post $post): JsonResponse
     {
-        $userId = User::current()->id;
+        $userId = $request->user()->id;
         $repost = Repost::where('post_id', $post->id)->where('user_id', $userId)->first();
 
         if ($repost) {

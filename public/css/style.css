@@ -238,6 +238,23 @@ img, video {
 :root[data-theme="light"] .icon-btn.theme-toggle .icon-dark { display: inline; }
 :root[data-theme="light"] .icon-btn.theme-toggle .icon-light { display: none; }
 
+.header-auth {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 4px;
+}
+
+.header-auth-name {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .avatar-btn {
     width: 34px;
     height: 34px;

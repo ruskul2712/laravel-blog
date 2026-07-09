@@ -10,13 +10,18 @@ use Illuminate\Support\Facades\Auth;
 class AuthController extends Controller
 {
     public function showRegister(){
-        return view('auth.register');
+        return view('posts.home', ['authTab' => 'register']);
     }
     public function showLogin(){
-        return view('auth.login');
+        return view('posts.home', ['authTab' => 'login']);
     }
-    public function logout(){
-        return 'Logout';
+    public function logout(Request $request){
+        Auth::logout();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect('/');
     }
     public function register(Request $request){
         $request->validate([
@@ -45,16 +50,17 @@ class AuthController extends Controller
         if (Auth::attempt([
             'email' => $request->email,
             'password' => $request->password,
-        ])) {
+        ], $request->boolean('remember'))) {
 
             $request->session()->regenerate();
 
             return redirect('/');
         }
 
-        return back()->withErrors([
+        return back()->withInput($request->only('email'))->withErrors([
             'email' => 'Неверный email или пароль.',
         ]);
     }
+
 }
 

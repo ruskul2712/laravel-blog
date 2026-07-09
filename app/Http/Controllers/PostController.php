@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Post;
-use App\Models\User;
 use Illuminate\Support\Facades\Storage;
 
 
@@ -14,18 +13,18 @@ class PostController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
         $posts = Post::with(['user', 'comments.user'])
             ->withCount(['likes', 'comments', 'bookmarks', 'reposts'])
             ->latest()
             ->get();
 
-        $currentUser = User::current();
+        $currentUser = $request->user();
 
-        $likedPostIds = $currentUser->likes()->pluck('post_id')->all();
-        $bookmarkedPostIds = $currentUser->bookmarks()->pluck('post_id')->all();
-        $repostedPostIds = $currentUser->reposts()->pluck('post_id')->all();
+        $likedPostIds = $currentUser ? $currentUser->likes()->pluck('post_id')->all() : [];
+        $bookmarkedPostIds = $currentUser ? $currentUser->bookmarks()->pluck('post_id')->all() : [];
+        $repostedPostIds = $currentUser ? $currentUser->reposts()->pluck('post_id')->all() : [];
 
         return view('posts.index', compact('posts', 'likedPostIds', 'bookmarkedPostIds', 'repostedPostIds'));
     }
@@ -57,8 +56,7 @@ class PostController extends Controller
             $validated['image'] = $request->file('image')->store('posts', 'public');
         }
 
-        // No login system yet, so posts are attributed to the demo user (see ProfileController).
-        $validated['user_id'] = User::current()->id;
+        $validated['user_id'] = $request->user()->id;
 
         Post::create($validated);
 
