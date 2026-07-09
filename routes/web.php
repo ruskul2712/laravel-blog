@@ -10,11 +10,13 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\PostInteractionController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\UserProfileController;
 
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::get('/post', [PostController::class, 'index'])->name('post.feed');
 Route::get('/posts/databaza', [DataBazeController::class, 'store']);
+Route::get('/users/{user}', [UserProfileController::class, 'show'])->name('users.show');
 
 Route::middleware('auth')->group(function () {
     Route::get('/hello', [HelloController::class, 'index'])->name('profile.show');

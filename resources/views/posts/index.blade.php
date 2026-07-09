@@ -81,10 +81,20 @@
         @forelse($posts as $post)
             <article class="post-card" id="post-{{ $post->id }}" data-post-id="{{ $post->id }}" style="--delay: {{ min($loop->index * 0.05, 0.4) }}s">
                 <div class="post-card-head">
-                    <div class="avatar-circle">{{ mb_strtoupper(mb_substr($post->user->name ?? 'П', 0, 1)) }}</div>
+                    @if($post->user)
+                        <a href="{{ route('users.show', $post->user) }}" class="avatar-circle">{{ mb_strtoupper(mb_substr($post->user->name, 0, 1)) }}</a>
+                    @else
+                        <div class="avatar-circle">П</div>
+                    @endif
 
                     <div class="post-head-meta">
-                        <div class="post-username">{{ $post->user->name ?? 'Пользователь' }}</div>
+                        <div class="post-username">
+                            @if($post->user)
+                                <a href="{{ route('users.show', $post->user) }}">{{ $post->user->name }}</a>
+                            @else
+                                Пользователь
+                            @endif
+                        </div>
                         <div class="post-time">{{ $post->created_at->diffForHumans() }}</div>
                     </div>
 
@@ -118,16 +128,32 @@
                 </div>
 
                 <div class="post-caption">
-                    <span class="cap-username">{{ $post->user->name ?? 'Пользователь' }}</span><span class="cap-text"><strong class="cap-title">{{ $post->title }}</strong> {{ $post->description }}</span>
+                    <span class="cap-username">
+                        @if($post->user)
+                            <a href="{{ route('users.show', $post->user) }}">{{ $post->user->name }}</a>
+                        @else
+                            Пользователь
+                        @endif
+                    </span><span class="cap-text"><strong class="cap-title">{{ $post->title }}</strong> {{ $post->description }}</span>
                 </div>
 
                 <div class="post-comments">
                     @forelse($post->comments as $comment)
                         <div class="comment-row" data-comment-id="{{ $comment->id }}">
-                            <div class="avatar-circle">{{ mb_strtoupper(mb_substr($comment->user->name ?? 'П', 0, 1)) }}</div>
+                            @if($comment->user)
+                                <a href="{{ route('users.show', $comment->user) }}" class="avatar-circle">{{ mb_strtoupper(mb_substr($comment->user->name, 0, 1)) }}</a>
+                            @else
+                                <div class="avatar-circle">П</div>
+                            @endif
                             <div class="comment-body">
                                 <div class="comment-text-line">
-                                    <span class="c-username">{{ $comment->user->name ?? 'Пользователь' }}</span><span class="c-text">{{ $comment->body }}</span>
+                                    <span class="c-username">
+                                        @if($comment->user)
+                                            <a href="{{ route('users.show', $comment->user) }}">{{ $comment->user->name }}</a>
+                                        @else
+                                            Пользователь
+                                        @endif
+                                    </span><span class="c-text">{{ $comment->body }}</span>
                                     <div class="comment-time">{{ $comment->created_at->diffForHumans() }}</div>
                                 </div>
                                 <form class="comment-edit-form">
