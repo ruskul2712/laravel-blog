@@ -15,6 +15,30 @@ class HelloController extends Controller
             ->latest()
             ->get();
 
-        return view('posts.about', compact('user', 'posts'));
+        $savedPosts = $user->bookmarks()
+            ->with(['post' => fn ($q) => $q->withCount(['likes', 'comments'])])
+            ->latest()
+            ->get()
+            ->pluck('post')
+            ->filter();
+
+        $repostedPosts = $user->reposts()
+            ->with(['post' => fn ($q) => $q->withCount(['likes', 'comments'])])
+            ->latest()
+            ->get()
+            ->pluck('post')
+            ->filter();
+
+        $followersCount = $user->followers()->count();
+        $followingCount = $user->following()->count();
+
+        return view('posts.about', compact(
+            'user',
+            'posts',
+            'savedPosts',
+            'repostedPosts',
+            'followersCount',
+            'followingCount'
+        ));
     }
 }

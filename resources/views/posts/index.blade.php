@@ -20,7 +20,7 @@
     <link rel="stylesheet" href="{{ asset('css/pages.css') }}">
     <title>Posts</title>
 </head>
-<body>
+<body data-auth="{{ auth()->check() ? '1' : '0' }}">
 
 <header class="site-header">
     <div class="container header-inner">
@@ -28,10 +28,7 @@
             <span class="logo-mark">💫</span>
             <span class="logo-text">Pulse</span>
         </a>
-        <div class="header-search">
-            <span class="search-icon">🔍</span>
-            <input type="text" placeholder="Поиск" disabled>
-        </div>
+        @include('partials.search-box')
         <nav class="main-nav">
             <a href="/" class="nav-link">Главная</a>
             <a href="/post" class="nav-link active">Лента</a>
@@ -39,11 +36,13 @@
         </nav>
         <div class="header-icons">
             <button type="button" class="icon-btn" data-open-modal="modal-new-post" title="Новая публикация">➕</button>
-            <button type="button" class="icon-btn" title="Уведомления">🔔</button>
+            @include('partials.notifications-bell')
             <button type="button" class="icon-btn theme-toggle" title="Сменить тему">
                 <span class="icon-light">🌙</span><span class="icon-dark">☀️</span>
             </button>
-            <a href="/hello" class="avatar-btn" title="Профиль">Р</a>
+            @auth
+                <a href="/hello" class="avatar-btn" title="Профиль">{{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 1)) }}</a>
+            @endauth
             @include('partials.header-auth')
         </div>
     </div>
@@ -51,32 +50,63 @@
 
 <main class="feed-shell">
     <div>
-        <div class="stories-row">
-            <div class="story-item">
-                <div class="story-ring is-you"><div class="story-avatar">➕</div></div>
-                <span class="story-name">Ваша история</span>
-            </div>
-            <div class="story-item">
-                <div class="story-ring"><div class="story-avatar">🧑‍🎨</div></div>
-                <span class="story-name">anna</span>
-            </div>
-            <div class="story-item">
-                <div class="story-ring"><div class="story-avatar">🎮</div></div>
-                <span class="story-name">igor</span>
-            </div>
-            <div class="story-item">
-                <div class="story-ring seen"><div class="story-avatar">🍰</div></div>
-                <span class="story-name">marina</span>
-            </div>
-            <div class="story-item">
-                <div class="story-ring seen"><div class="story-avatar">🚴</div></div>
-                <span class="story-name">dima</span>
-            </div>
-            <div class="story-item">
-                <div class="story-ring"><div class="story-avatar">📷</div></div>
-                <span class="story-name">sonya</span>
-            </div>
+        <div class="stories-row" id="stories-row">
+            @auth
+                <div class="story-item" id="story-self">
+                    <div class="story-ring is-you {{ $ownStoryGroup ? 'has-story' : '' }}">
+                        <div class="story-avatar">
+                            @if(auth()->user()->avatar_url)
+                                <img src="{{ auth()->user()->avatar_url }}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">
+                            @else
+                                {{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 1)) }}
+                            @endif
+                        </div>
+                        <button type="button" class="story-add-badge" id="story-add-badge" title="Добавить историю">➕</button>
+                    </div>
+                    <span class="story-name">Ваша история</span>
+                </div>
+            @endauth
+
+            @foreach($otherStoryGroups as $group)
+                <div class="story-item" data-user-id="{{ $group['user']->id }}">
+                    <div class="story-ring {{ $group['allSeen'] ? 'seen' : '' }}">
+                        <div class="story-avatar">
+                            @if($group['user']->avatar_url)
+                                <img src="{{ $group['user']->avatar_url }}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">
+                            @else
+                                {{ mb_strtoupper(mb_substr($group['user']->name, 0, 1)) }}
+                            @endif
+                        </div>
+                    </div>
+                    <span class="story-name">{{ $group['user']->name }}</span>
+                </div>
+            @endforeach
         </div>
+
+        <script id="stories-json" type="application/json">
+            {!! json_encode([
+                'own' => $ownStoryGroup ? [
+                    'userId' => $ownStoryGroup['user']->id,
+                    'name' => 'Ваша история',
+                    'initial' => mb_strtoupper(mb_substr($ownStoryGroup['user']->name, 0, 1)),
+                    'items' => $ownStoryGroup['items']->map(fn ($s) => [
+                        'id' => $s->id,
+                        'image' => $s->imageUrl(),
+                        'createdAt' => $s->created_at->diffForHumans(),
+                    ])->values(),
+                ] : null,
+                'others' => $otherStoryGroups->map(fn ($g) => [
+                    'userId' => $g['user']->id,
+                    'name' => $g['user']->name,
+                    'initial' => mb_strtoupper(mb_substr($g['user']->name, 0, 1)),
+                    'items' => $g['items']->map(fn ($s) => [
+                        'id' => $s->id,
+                        'image' => $s->imageUrl(),
+                        'createdAt' => $s->created_at->diffForHumans(),
+                    ])->values(),
+                ])->values(),
+            ]) !!}
+        </script>
 
         @forelse($posts as $post)
             <article class="post-card" id="post-{{ $post->id }}" data-post-id="{{ $post->id }}" style="--delay: {{ min($loop->index * 0.05, 0.4) }}s">
@@ -189,41 +219,31 @@
     </div>
 
     <aside class="feed-sidebar">
-        <div class="mini-profile">
-            <div class="avatar-circle">Р</div>
-            <div>
-                <div class="mini-profile-name">Рустам</div>
-                <div class="mini-profile-sub">@rustam.dev</div>
-            </div>
-        </div>
+        @auth
+            <a href="{{ route('profile.show') }}" class="mini-profile">
+                <div class="avatar-circle">{{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 1)) }}</div>
+                <div>
+                    <div class="mini-profile-name">{{ auth()->user()->name }}</div>
+                    <div class="mini-profile-sub">{{ auth()->user()->email }}</div>
+                </div>
+            </a>
+        @endauth
 
-        <div class="suggestions-card">
-            <h4>Рекомендации для вас</h4>
-            <div class="suggestion-row">
-                <div class="avatar-circle">С</div>
-                <div class="suggestion-info">
-                    <div class="suggestion-name">sonya.photo</div>
-                    <div class="suggestion-sub">Новый в Pulse</div>
-                </div>
-                <button type="button" onclick="this.textContent = this.textContent==='Подписаться' ? 'Вы подписаны' : 'Подписаться';">Подписаться</button>
+        @if($suggestedUsers->isNotEmpty())
+            <div class="suggestions-card">
+                <h4>Рекомендации для вас</h4>
+                @foreach($suggestedUsers as $suggested)
+                    <div class="suggestion-row">
+                        <a href="{{ route('users.show', $suggested) }}" class="avatar-circle">{{ mb_strtoupper(mb_substr($suggested->name, 0, 1)) }}</a>
+                        <div class="suggestion-info">
+                            <div class="suggestion-name"><a href="{{ route('users.show', $suggested) }}">{{ $suggested->name }}</a></div>
+                            <div class="suggestion-sub">Новый в Pulse</div>
+                        </div>
+                        <button type="button" class="follow-btn {{ in_array($suggested->id, $followingIds) ? 'is-following' : '' }}" data-user-id="{{ $suggested->id }}">{{ in_array($suggested->id, $followingIds) ? 'Вы подписаны' : 'Подписаться' }}</button>
+                    </div>
+                @endforeach
             </div>
-            <div class="suggestion-row">
-                <div class="avatar-circle">П</div>
-                <div class="suggestion-info">
-                    <div class="suggestion-name">pavel.k</div>
-                    <div class="suggestion-sub">Подписан на anna_sokolova</div>
-                </div>
-                <button type="button" onclick="this.textContent = this.textContent==='Подписаться' ? 'Вы подписаны' : 'Подписаться';">Подписаться</button>
-            </div>
-            <div class="suggestion-row">
-                <div class="avatar-circle">К</div>
-                <div class="suggestion-info">
-                    <div class="suggestion-name">katya.travel</div>
-                    <div class="suggestion-sub">Популярно у вас</div>
-                </div>
-                <button type="button" onclick="this.textContent = this.textContent==='Подписаться' ? 'Вы подписаны' : 'Подписаться';">Подписаться</button>
-            </div>
-        </div>
+        @endif
     </aside>
 </main>
 
@@ -303,9 +323,66 @@
     </div>
 </div>
 
+{{-- New story modal --}}
+<div class="modal-overlay" id="modal-new-story">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3>Новая история</h3>
+            <button type="button" class="modal-close" data-close-modal>✕</button>
+        </div>
+        <form id="form-new-story" action="{{ route('stories.store') }}" method="POST" enctype="multipart/form-data">
+            @csrf
+            <div class="modal-body">
+                <div class="dropzone" id="story-dropzone">
+                    <div class="dz-icon">📷</div>
+                    <div>Нажмите, чтобы выбрать фото для истории</div>
+                </div>
+                <input type="file" id="story-file" name="image" accept="image/*" hidden>
+                <div class="composer-preview" id="story-preview"></div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-ghost" data-close-modal>Отмена</button>
+                <button type="submit" class="btn btn-gradient">Опубликовать</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{-- Story viewer (Instagram-style full-screen) --}}
+<div class="story-viewer" id="story-viewer">
+    <div class="story-viewer-inner">
+        <div class="story-progress-row" id="story-progress-row"></div>
+        <div class="story-viewer-head">
+            <div class="story-viewer-user">
+                <span class="avatar-circle" id="story-viewer-avatar"></span>
+                <span id="story-viewer-username"></span>
+                <span class="story-viewer-time" id="story-viewer-time"></span>
+            </div>
+            <button type="button" class="modal-close" id="story-viewer-close">✕</button>
+        </div>
+        <div class="story-viewer-media">
+            <button type="button" class="story-nav story-nav-prev" id="story-nav-prev" aria-label="Предыдущая">‹</button>
+            <img id="story-viewer-img" src="" alt="">
+            <button type="button" class="story-nav story-nav-next" id="story-nav-next" aria-label="Следующая">›</button>
+        </div>
+    </div>
+</div>
+
 <div id="app-toast" class="toast"></div>
 
 <script src="{{ asset('js/app.js') }}"></script>
+
+@if(session('status'))
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var toast = document.getElementById('app-toast');
+            if (!toast) return;
+            toast.textContent = @json(session('status'));
+            toast.classList.add('show');
+            setTimeout(function () { toast.classList.remove('show'); }, 2800);
+        });
+    </script>
+@endif
 
 </body>
 </html>

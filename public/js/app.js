@@ -27,6 +27,11 @@
         initStatCounters();
         initConfirmModal();
         initAvatarPreview();
+        initFollowButtons();
+        initNotifications();
+        initSearch();
+        initStoryComposer();
+        initStories();
     });
 
     /* ---------- Backend API helper ---------- */
@@ -335,6 +340,228 @@
         });
     }
 
+    /* ---------- Follow / unfollow ---------- */
+    function initFollowButtons() {
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('.follow-btn');
+            if (!btn || btn.disabled) return;
+
+            const userId = btn.dataset.userId;
+            btn.disabled = true;
+
+            apiRequest(`/users/${userId}/follow`, 'POST')
+                .then(({ active, followers_count }) => {
+                    document.querySelectorAll(`.follow-btn[data-user-id="${userId}"]`).forEach((b) => {
+                        b.classList.toggle('is-following', active);
+                        b.classList.toggle('btn-gradient', !active);
+                        b.classList.toggle('btn-ghost', active);
+                        b.textContent = active ? 'Вы подписаны' : 'Подписаться';
+                    });
+
+                    if (typeof followers_count === 'number') {
+                        const countEl = document.getElementById('followersCount');
+                        if (countEl) countEl.textContent = followers_count;
+                    }
+
+                    showToast(active ? 'Вы подписались 🎉' : 'Вы отписались');
+                })
+                .catch((err) => showToast(err.message))
+                .finally(() => { btn.disabled = false; });
+        });
+    }
+
+    /* ---------- Notifications ---------- */
+    function initNotifications() {
+        const bellBtn = document.getElementById('notif-bell-btn');
+        if (!bellBtn) return;
+
+        const dropdown = document.getElementById('notif-dropdown');
+        const list = document.getElementById('notif-list');
+        const badge = document.getElementById('notif-badge');
+        const markAllBtn = document.getElementById('notif-mark-all-btn');
+
+        function setBadge(count) {
+            if (!badge) return;
+            if (count > 0) {
+                badge.textContent = count > 99 ? '99+' : String(count);
+                badge.hidden = false;
+            } else {
+                badge.hidden = true;
+            }
+        }
+
+        function renderNotification(n) {
+            const d = n.data;
+            let icon = '🔔';
+            let text = '';
+            let href = '#';
+
+            if (d.type === 'follow') {
+                icon = '👤';
+                text = `<b>${escapeHtml(d.follower_name)}</b> подписался(-ась) на вас`;
+                href = `/users/${d.follower_id}`;
+            } else if (d.type === 'like') {
+                icon = '❤️';
+                text = `<b>${escapeHtml(d.liker_name)}</b> оценил(а) вашу публикацию «${escapeHtml(d.post_title)}»`;
+                href = `/post#post-${d.post_id}`;
+            }
+
+            const el = document.createElement('a');
+            el.href = href;
+            el.className = 'notif-item' + (n.read ? '' : ' unread');
+            el.dataset.notificationId = n.id;
+            el.innerHTML = `
+                <span class="notif-icon">${icon}</span>
+                <span class="notif-text">${text}<div class="notif-time">${escapeHtml(n.created_at)}</div></span>
+            `;
+            el.addEventListener('click', () => {
+                if (!n.read) {
+                    apiRequest(`/notifications/${n.id}/read`, 'POST')
+                        .then(({ unread_count }) => setBadge(unread_count))
+                        .catch(() => {});
+                }
+            });
+            return el;
+        }
+
+        function loadNotifications() {
+            apiRequest('/notifications', 'GET')
+                .then(({ notifications, unread_count }) => {
+                    setBadge(unread_count);
+                    list.innerHTML = '';
+                    if (!notifications.length) {
+                        const empty = document.createElement('div');
+                        empty.className = 'notif-empty';
+                        empty.textContent = 'Пока нет уведомлений';
+                        list.appendChild(empty);
+                        return;
+                    }
+                    notifications.forEach((n) => list.appendChild(renderNotification(n)));
+                })
+                .catch(() => {
+                    list.innerHTML = '<div class="notif-empty">Не удалось загрузить уведомления</div>';
+                });
+        }
+
+        bellBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = dropdown.classList.contains('open');
+            document.querySelectorAll('.notif-dropdown.open').forEach((d) => d.classList.remove('open'));
+            if (!isOpen) {
+                dropdown.classList.add('open');
+                loadNotifications();
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.notif-wrap')) {
+                dropdown.classList.remove('open');
+            }
+        });
+
+        if (markAllBtn) {
+            markAllBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                apiRequest('/notifications/read-all', 'POST')
+                    .then(({ unread_count }) => {
+                        setBadge(unread_count);
+                        list.querySelectorAll('.notif-item.unread').forEach((el) => el.classList.remove('unread'));
+                    })
+                    .catch((err) => showToast(err.message));
+            });
+        }
+
+        // Initial unread badge, and poll periodically for new notifications.
+        apiRequest('/notifications', 'GET').then(({ unread_count }) => setBadge(unread_count)).catch(() => {});
+        setInterval(() => {
+            apiRequest('/notifications', 'GET').then(({ unread_count }) => setBadge(unread_count)).catch(() => {});
+        }, 30000);
+    }
+
+    /* ---------- Live search (header) ---------- */
+    function initSearch() {
+        const wrap = document.getElementById('search-wrap');
+        if (!wrap) return;
+
+        const input = document.getElementById('search-input');
+        const dropdown = document.getElementById('search-dropdown');
+        let debounceTimer = null;
+        let currentQuery = '';
+
+        function renderSection(title, items, renderItem) {
+            if (!items.length) return '';
+            return `<div class="search-section"><div class="search-section-title">${title}</div>${items.map(renderItem).join('')}</div>`;
+        }
+
+        function renderResults(data) {
+            const hasAny = data.users.length || data.posts.length || data.comments.length;
+            if (!hasAny) {
+                dropdown.innerHTML = '<div class="search-empty">Ничего не найдено</div>';
+                dropdown.classList.add('open');
+                return;
+            }
+
+            dropdown.innerHTML =
+                renderSection('Люди', data.users, (u) => `
+                    <a class="search-result-row" href="${u.href}">
+                        <span class="avatar-circle">${u.avatarUrl ? `<img src="${u.avatarUrl}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : escapeHtml(u.initial)}</span>
+                        <span class="search-result-text"><span class="search-result-title">${escapeHtml(u.name)}</span></span>
+                    </a>
+                `) +
+                renderSection('Публикации', data.posts, (p) => `
+                    <a class="search-result-row" href="${p.href}">
+                        <span class="search-result-icon">📝</span>
+                        <span class="search-result-text"><span class="search-result-title">${escapeHtml(p.title)}</span><span class="search-result-sub">${escapeHtml(p.snippet)}</span></span>
+                    </a>
+                `) +
+                renderSection('Комментарии', data.comments, (c) => `
+                    <a class="search-result-row" href="${c.href}">
+                        <span class="search-result-icon">💬</span>
+                        <span class="search-result-text"><span class="search-result-title">${escapeHtml(c.username)}</span><span class="search-result-sub">${escapeHtml(c.body)}</span></span>
+                    </a>
+                `);
+            dropdown.classList.add('open');
+        }
+
+        input.addEventListener('input', () => {
+            const q = input.value.trim();
+            clearTimeout(debounceTimer);
+
+            if (!q) {
+                dropdown.classList.remove('open');
+                dropdown.innerHTML = '';
+                return;
+            }
+
+            debounceTimer = setTimeout(() => {
+                currentQuery = q;
+                apiRequest(`/search/suggest?q=${encodeURIComponent(q)}`, 'GET')
+                    .then((data) => {
+                        if (q === currentQuery) renderResults(data);
+                    })
+                    .catch(() => {});
+            }, 250);
+        });
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const q = input.value.trim();
+                if (q) window.location.href = `/search?q=${encodeURIComponent(q)}`;
+            }
+        });
+
+        input.addEventListener('focus', () => {
+            if (dropdown.innerHTML) dropdown.classList.add('open');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#search-wrap')) {
+                dropdown.classList.remove('open');
+            }
+        });
+    }
+
     /* ---------- Comments: add / edit / delete ---------- */
     function initComments() {
         document.addEventListener('input', (e) => {
@@ -552,6 +779,171 @@
 
         // Form posts for real to Laravel (see action/method/@csrf on #form-new-post),
         // so the browser just submits normally and the page reloads with the new post.
+    }
+
+    /* ---------- Story composer (dropzone preview for the upload modal) ---------- */
+    function initStoryComposer() {
+        const fileInput = document.getElementById('story-file');
+        const dropzone = document.getElementById('story-dropzone');
+        const preview = document.getElementById('story-preview');
+        const form = document.getElementById('form-new-story');
+        if (!form) return;
+
+        dropzone.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', () => {
+            const file = fileInput.files[0];
+            if (!file) return;
+            const url = URL.createObjectURL(file);
+            preview.innerHTML = `<img src="${url}"><button type="button" class="remove-preview">✕</button>`;
+            preview.classList.add('show');
+            dropzone.style.display = 'none';
+        });
+
+        preview.addEventListener('click', (e) => {
+            if (e.target.closest('.remove-preview')) {
+                preview.classList.remove('show');
+                preview.innerHTML = '';
+                dropzone.style.display = '';
+                fileInput.value = '';
+            }
+        });
+
+        // Form posts for real to Laravel (see action/method/@csrf on #form-new-story),
+        // so the browser just submits normally and the page reloads with the new story.
+    }
+
+    /* ---------- Story viewer (Instagram-style full-screen playback) ---------- */
+    function initStories() {
+        const dataScript = document.getElementById('stories-json');
+        const viewer = document.getElementById('story-viewer');
+        if (!dataScript || !viewer) return;
+
+        const storiesData = JSON.parse(dataScript.textContent);
+        const isAuthenticated = document.body.dataset.auth === '1';
+        const DURATION = 5000;
+
+        const progressRow = document.getElementById('story-progress-row');
+        const imgEl = document.getElementById('story-viewer-img');
+        const avatarEl = document.getElementById('story-viewer-avatar');
+        const usernameEl = document.getElementById('story-viewer-username');
+        const timeEl = document.getElementById('story-viewer-time');
+
+        let currentGroup = null;
+        let currentIndex = 0;
+        let advanceTimer = null;
+
+        function open(group, startIndex) {
+            if (!group || !group.items.length) return;
+            currentGroup = group;
+            currentIndex = startIndex || 0;
+
+            progressRow.innerHTML = '';
+            group.items.forEach(() => {
+                const bar = document.createElement('div');
+                bar.className = 'story-progress-bar';
+                bar.innerHTML = '<span></span>';
+                progressRow.appendChild(bar);
+            });
+
+            avatarEl.textContent = group.initial;
+            usernameEl.textContent = group.name;
+            viewer.classList.add('open');
+            renderCurrent();
+        }
+
+        function renderCurrent() {
+            const item = currentGroup.items[currentIndex];
+            imgEl.src = item.image;
+            timeEl.textContent = item.createdAt;
+
+            const bars = progressRow.querySelectorAll('.story-progress-bar');
+            bars.forEach((bar, i) => {
+                const fill = bar.querySelector('span');
+                fill.style.transition = 'none';
+                fill.style.width = i < currentIndex ? '100%' : '0%';
+            });
+
+            if (isAuthenticated && item.id) {
+                apiRequest(`/stories/${item.id}/view`, 'POST').catch(() => {});
+            }
+
+            clearTimeout(advanceTimer);
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    const fill = bars[currentIndex].querySelector('span');
+                    fill.style.transition = `width ${DURATION}ms linear`;
+                    fill.style.width = '100%';
+                });
+            });
+            advanceTimer = setTimeout(next, DURATION);
+        }
+
+        function next() {
+            if (currentIndex < currentGroup.items.length - 1) {
+                currentIndex += 1;
+                renderCurrent();
+            } else {
+                markRingSeen();
+                close();
+            }
+        }
+
+        function prev() {
+            if (currentIndex > 0) {
+                currentIndex -= 1;
+                renderCurrent();
+            } else {
+                close();
+            }
+        }
+
+        function markRingSeen() {
+            if (!currentGroup.userId) return;
+            const ring = document.querySelector(`.story-item[data-user-id="${currentGroup.userId}"] .story-ring`);
+            if (ring) ring.classList.add('seen');
+        }
+
+        function close() {
+            clearTimeout(advanceTimer);
+            viewer.classList.remove('open');
+            currentGroup = null;
+        }
+
+        document.getElementById('story-nav-prev').addEventListener('click', prev);
+        document.getElementById('story-nav-next').addEventListener('click', next);
+        document.getElementById('story-viewer-close').addEventListener('click', close);
+        viewer.addEventListener('click', (e) => {
+            if (e.target === viewer) close();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (!viewer.classList.contains('open')) return;
+            if (e.key === 'Escape') close();
+            if (e.key === 'ArrowRight') next();
+            if (e.key === 'ArrowLeft') prev();
+        });
+
+        const selfItem = document.getElementById('story-self');
+        if (selfItem) {
+            selfItem.addEventListener('click', (e) => {
+                if (e.target.closest('.story-add-badge')) {
+                    openModal('modal-new-story');
+                    return;
+                }
+                if (storiesData.own) {
+                    open(storiesData.own, 0);
+                } else {
+                    openModal('modal-new-story');
+                }
+            });
+        }
+
+        document.querySelectorAll('.story-item[data-user-id]').forEach((el) => {
+            el.addEventListener('click', () => {
+                const group = storiesData.others.find((g) => String(g.userId) === el.dataset.userId);
+                if (group) open(group, 0);
+            });
+        });
     }
 
     /* ---------- Profile tabs ---------- */

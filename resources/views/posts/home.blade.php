@@ -32,10 +32,7 @@
             <span class="logo-mark">💫</span>
             <span class="logo-text">Pulse</span>
         </a>
-        <div class="header-search">
-            <span class="search-icon">🔍</span>
-            <input type="text" placeholder="Поиск" disabled>
-        </div>
+        @include('partials.search-box')
         <nav class="main-nav">
             <a href="/" class="nav-link active">Главная</a>
             <a href="/post" class="nav-link">Лента</a>

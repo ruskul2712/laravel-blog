@@ -12,6 +12,7 @@
     <meta name="viewport"
           content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
@@ -27,10 +28,7 @@
             <span class="logo-mark">💫</span>
             <span class="logo-text">Pulse</span>
         </a>
-        <div class="header-search">
-            <span class="search-icon">🔍</span>
-            <input type="text" placeholder="Поиск" disabled>
-        </div>
+        @include('partials.search-box')
         <nav class="main-nav">
             <a href="/" class="nav-link">Главная</a>
             <a href="/post" class="nav-link">Лента</a>
@@ -38,6 +36,7 @@
         </nav>
         <div class="header-icons">
             <button type="button" class="icon-btn" title="Настройки" data-open-modal="modal-edit-profile">⚙️</button>
+            @include('partials.notifications-bell')
             <button type="button" class="icon-btn theme-toggle" title="Сменить тему">
                 <span class="icon-light">🌙</span><span class="icon-dark">☀️</span>
             </button>
@@ -67,8 +66,8 @@
 
             <div class="profile-stats">
                 <span class="profile-stat"><b id="postsCount">{{ $posts->count() }}</b>публикаций</span>
-                <span class="profile-stat"><b class="stat-number" data-target="0">0</b>подписчиков</span>
-                <span class="profile-stat"><b class="stat-number" data-target="0">0</b>подписок</span>
+                <a href="{{ route('users.followers', $user) }}" class="profile-stat"><b class="stat-number" data-target="{{ $followersCount }}">0</b>подписчиков</a>
+                <a href="{{ route('users.following', $user) }}" class="profile-stat"><b class="stat-number" data-target="{{ $followingCount }}">0</b>подписок</a>
             </div>
 
             <p class="profile-bio">{{ $user->bio ?: 'Пока ничего не рассказал(а) о себе — самое время это исправить в настройках профиля.' }}
@@ -79,7 +78,7 @@
     <nav class="profile-tabs">
         <button type="button" class="profile-tab active" data-target="tab-posts">📸 Публикации</button>
         <button type="button" class="profile-tab" data-target="tab-saved">🔖 Сохранённые</button>
-        <button type="button" class="profile-tab" data-target="tab-tagged">🏷️ Отметки</button>
+        <button type="button" class="profile-tab" data-target="tab-reposts">📤 Репосты</button>
     </nav>
 
     <div class="profile-tab-panel active" id="tab-posts">
@@ -112,19 +111,55 @@
     </div>
 
     <div class="profile-tab-panel" id="tab-saved">
-        <div class="empty-state">
-            <div class="empty-emoji">🔖</div>
-            <h3>Пока ничего не сохранено</h3>
-            <p>Нажимайте на значок 🔖 под публикацией, чтобы сохранить её сюда.</p>
-        </div>
+        @if($savedPosts->isEmpty())
+            <div class="empty-state">
+                <div class="empty-emoji">🔖</div>
+                <h3>Пока ничего не сохранено</h3>
+                <p>Нажимайте на значок 🔖 под публикацией, чтобы сохранить её сюда.</p>
+            </div>
+        @else
+            <div class="post-grid">
+                @foreach($savedPosts as $post)
+                    <a href="{{ route('post.feed') }}#post-{{ $post->id }}" class="grid-tile" data-post-id="{{ $post->id }}"
+                       @if($post->imageUrl())
+                           style="background-image:url('{{ $post->imageUrl() }}');background-size:cover;background-position:center;"
+                       @else
+                           style="background: linear-gradient(135deg,#1f2937,#405de6);"
+                       @endif>
+                        @unless($post->imageUrl())
+                            📝
+                        @endunless
+                        <div class="grid-overlay">❤️ {{ $post->likes_count }} &nbsp; 💬 {{ $post->comments_count }}</div>
+                    </a>
+                @endforeach
+            </div>
+        @endif
     </div>
 
-    <div class="profile-tab-panel" id="tab-tagged">
-        <div class="empty-state">
-            <div class="empty-emoji">🏷️</div>
-            <h3>Отметок пока нет</h3>
-            <p>Здесь появятся публикации, на которых вас отметили друзья.</p>
-        </div>
+    <div class="profile-tab-panel" id="tab-reposts">
+        @if($repostedPosts->isEmpty())
+            <div class="empty-state">
+                <div class="empty-emoji">📤</div>
+                <h3>Пока нет репостов</h3>
+                <p>Нажимайте на значок 📤 под публикацией, чтобы репостнуть её сюда.</p>
+            </div>
+        @else
+            <div class="post-grid">
+                @foreach($repostedPosts as $post)
+                    <a href="{{ route('post.feed') }}#post-{{ $post->id }}" class="grid-tile" data-post-id="{{ $post->id }}"
+                       @if($post->imageUrl())
+                           style="background-image:url('{{ $post->imageUrl() }}');background-size:cover;background-position:center;"
+                       @else
+                           style="background: linear-gradient(135deg,#1f2937,#405de6);"
+                       @endif>
+                        @unless($post->imageUrl())
+                            📝
+                        @endunless
+                        <div class="grid-overlay">❤️ {{ $post->likes_count }} &nbsp; 💬 {{ $post->comments_count }}</div>
+                    </a>
+                @endforeach
+            </div>
+        @endif
     </div>
 </main>
 

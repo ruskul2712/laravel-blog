@@ -12,6 +12,7 @@
     <meta name="viewport"
           content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
@@ -27,16 +28,14 @@
             <span class="logo-mark">💫</span>
             <span class="logo-text">Pulse</span>
         </a>
-        <div class="header-search">
-            <span class="search-icon">🔍</span>
-            <input type="text" placeholder="Поиск" disabled>
-        </div>
+        @include('partials.search-box')
         <nav class="main-nav">
             <a href="/" class="nav-link">Главная</a>
             <a href="/post" class="nav-link">Лента</a>
             <a href="/hello" class="nav-link">Профиль</a>
         </nav>
         <div class="header-icons">
+            @include('partials.notifications-bell')
             <button type="button" class="icon-btn theme-toggle" title="Сменить тему">
                 <span class="icon-light">🌙</span><span class="icon-dark">☀️</span>
             </button>
@@ -61,12 +60,15 @@
         <div class="profile-main">
             <div class="profile-name-row">
                 <span class="profile-username">{{ $user->name }}</span>
+                @auth
+                    <button type="button" class="btn {{ $isFollowing ? 'btn-ghost' : 'btn-gradient' }} btn-sm follow-btn {{ $isFollowing ? 'is-following' : '' }}" data-user-id="{{ $user->id }}">{{ $isFollowing ? 'Вы подписаны' : 'Подписаться' }}</button>
+                @endauth
             </div>
 
             <div class="profile-stats">
                 <span class="profile-stat"><b>{{ $posts->count() }}</b>публикаций</span>
-                <span class="profile-stat"><b>0</b>подписчиков</span>
-                <span class="profile-stat"><b>0</b>подписок</span>
+                <a href="{{ route('users.followers', $user) }}" class="profile-stat"><b id="followersCount">{{ $followersCount }}</b>подписчиков</a>
+                <a href="{{ route('users.following', $user) }}" class="profile-stat"><b>{{ $followingCount }}</b>подписок</a>
             </div>
 
             <p class="profile-bio">{{ $user->bio ?: 'Пользователь пока ничего не рассказал(а) о себе.' }}</p>

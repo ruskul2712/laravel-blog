@@ -6,6 +6,7 @@ use App\Models\Bookmark;
 use App\Models\Like;
 use App\Models\Post;
 use App\Models\Repost;
+use App\Notifications\PostLiked;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -25,6 +26,10 @@ class PostInteractionController extends Controller
         } else {
             Like::create(['post_id' => $post->id, 'user_id' => $userId]);
             $active = true;
+
+            if ($post->user && $post->user->id !== $userId) {
+                $post->user->notify(new PostLiked($request->user(), $post));
+            }
         }
 
         return response()->json([
