@@ -2,27 +2,20 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\PostService;
-use Illuminate\Http\Request;
-use App\Models\Category;
-use App\Models\Post;
-use App\Models\Story;
-use App\Models\Tag;
-use App\Models\User;
-use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\StorePostRequest;
 use App\Http\Requests\UpdatePostRequest;
-
-
+use App\Models\Post;
+use App\Services\PostService;
+use Illuminate\Http\Request;
 
 class PostController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request)
+    public function index(Request $request, PostService $postService)
     {
-        return view('posts.index', $this->buildFeedData($request, onlyFollowing: false));
+        return view('posts.index', $postService->buildFeedData($request, onlyFollowing: false));
     }
 
     /**
@@ -31,44 +24,6 @@ class PostController extends Controller
     public function followingFeed(Request $request, PostService $postService)
     {
         return view('posts.index', $postService->buildFeedData($request, onlyFollowing: true));
-    }
-
-    /**
-     * Build all the data the posts.index view needs, optionally restricted
-     * to posts from users the current user follows.
-     */
-
-
-    /**
-     * Group active (< 24h old) stories by author, splitting the current
-     * user's own stories out from everyone else's. Others are ordered
-     * with unseen story rings first, Instagram-style.
-     */
-    private function buildStoryGroups(?User $currentUser): array
-    {
-        $stories = Story::with('user')->active()->orderBy('created_at')->get();
-        $seenStoryIds = $currentUser ? $currentUser->seenStories()->pluck('stories.id')->all() : [];
-
-        $ownGroup = null;
-        $otherGroups = collect();
-
-        foreach ($stories->groupBy('user_id') as $userId => $userStories) {
-            $group = [
-                'user' => $userStories->first()->user,
-                'items' => $userStories->values(),
-                'allSeen' => $userStories->every(fn ($story) => in_array($story->id, $seenStoryIds)),
-            ];
-
-            if ($currentUser && (int) $userId === $currentUser->id) {
-                $ownGroup = $group;
-            } else {
-                $otherGroups->push($group);
-            }
-        }
-
-        $otherGroups = $otherGroups->sortBy(fn ($group) => $group['allSeen'] ? 1 : 0)->values();
-
-        return [$ownGroup, $otherGroups];
     }
 
     /**
@@ -82,95 +37,39 @@ class PostController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StorePostRequest $request)
+    public function store(StorePostRequest $request, PostService $postService)
     {
-        $validated = $request->validated();
-
-        $tagNames = $this->parseTagNames($validated['tags'] ?? null);
-        unset($validated['tags']);
-
-        $validated['user_id'] = $request->user()->id;
-
-        if ($request->hasFile('image')) {
-            $validated['image'] = $request->file('image')->store('posts', 'public');
-        } else {
-            unset($validated['image']);
-        }
-
-        $post = Post::create($validated);
-
-        if (! empty($tagNames)) {
-            $tagIds = collect($tagNames)->map(
-                fn (string $name) => Tag::firstOrCreate(['name' => $name])->id
-            );
-            $post->tags()->sync($tagIds);
-        }
+        $postService->createPost($request->validated(), $request->file('image'), $request->user()->id);
 
         return redirect()->route('post.feed')->with('status', 'Пост опубликован 🎉');
     }
 
     /**
-     * Split a comma-separated "tags" input into a clean list of unique names.
-     */
-    private function parseTagNames(?string $tags): array
-    {
-        if (! $tags) {
-            return [];
-        }
-
-        return collect(explode(',', $tags))
-            ->map(fn (string $tag) => trim($tag))
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
-    }
-
-
-    /**
      * Display the specified resource.
      */
-    public function show(Request $request, Post $post)
+    public function show(Request $request, Post $post, PostService $postService)
     {
-        $post->load(['user', 'category', 'tags', 'comments.user']);
-        $post->loadCount(['likes', 'comments', 'bookmarks', 'reposts']);
-
-        $currentUser = $request->user();
-
-        $isLiked = $currentUser ? $currentUser->likes()->where('post_id', $post->id)->exists() : false;
-        $isBookmarked = $currentUser ? $currentUser->bookmarks()->where('post_id', $post->id)->exists() : false;
-        $isReposted = $currentUser ? $currentUser->reposts()->where('post_id', $post->id)->exists() : false;
-
-        return view('posts.show', compact('post', 'isLiked', 'isBookmarked', 'isReposted'));
+        return view('posts.show', $postService->buildShowData($request, $post));
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Post $post){
-        $this->authorize('update', $post);
-        return view('posts.edit', compact('post'));
-    }
-    /**
-     * Update the specified resource in storage.
-     *
-     * There is no login/authorization system yet, so anyone can edit
-     * any post — that restriction is intentionally left out for now.
-     */
-    public function update(UpdatePostRequest $request, Post $post)
+    public function edit(Post $post)
     {
         $this->authorize('update', $post);
 
-        $validated = $request->validated();
+        return view('posts.edit', compact('post'));
+    }
 
-        if ($request->hasFile('image')) {
-            if ($post->image) {
-                Storage::disk('public')->delete($post->image);
-            }
-            $validated['image'] = $request->file('image')->store('posts', 'public');
-        }
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(UpdatePostRequest $request, Post $post, PostService $postService)
+    {
+        $this->authorize('update', $post);
 
-        $post->update($validated);
+        $post = $postService->updatePost($post, $request->validated(), $request->file('image'));
 
         return response()->json([
             'post' => [
@@ -184,15 +83,12 @@ class PostController extends Controller
 
     /**
      * Remove the specified resource from storage.
-     *
-     * There is no login/authorization system yet, so anyone can delete
-     * any post — that restriction is intentionally left out for now.
      */
-    public function destroy(Post $post)
+    public function destroy(Post $post, PostService $postService)
     {
         $this->authorize('delete', $post);
 
-        $post->delete();
+        $postService->deletePost($post);
 
         return response()->json(['deleted' => true]);
     }
