@@ -32,7 +32,7 @@
         <nav class="main-nav">
             <a href="/" class="nav-link">Главная</a>
             <a href="/post" class="nav-link">Лента</a>
-            <a href="/hello" class="nav-link active">Профиль</a>
+            <a href="{{ route('profile.show') }}" class="nav-link active">Профиль</a>
         </nav>
         <div class="header-icons">
             <button type="button" class="icon-btn" title="Настройки" data-open-modal="modal-edit-profile">⚙️</button>
@@ -40,7 +40,7 @@
             <button type="button" class="icon-btn theme-toggle" title="Сменить тему">
                 <span class="icon-light">🌙</span><span class="icon-dark">☀️</span>
             </button>
-            <a href="/hello" class="avatar-btn" title="Профиль">{{ mb_strtoupper(mb_substr($user->name, 0, 1)) }}</a>
+            <a href="{{ route('profile.show') }}" class="avatar-btn" title="Профиль">{{ mb_strtoupper(mb_substr($user->name, 0, 1)) }}</a>
             @include('partials.header-auth')
         </div>
     </div>

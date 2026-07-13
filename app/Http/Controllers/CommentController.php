@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreCommentRequest;
+use App\Http\Requests\UpdateCommentRequest;
 use App\Models\Comment;
 use App\Models\Post;
-use Illuminate\Http\Request;
+use App\Services\CommentService;
 use Illuminate\Http\JsonResponse;
 
 class CommentController extends Controller
@@ -12,18 +14,9 @@ class CommentController extends Controller
     /**
      * Store a new comment on a post.
      */
-    public function store(Request $request, Post $post): JsonResponse
+    public function store(StoreCommentRequest $request, Post $post, CommentService $commentService): JsonResponse
     {
-        $validated = $request->validate([
-            'body' => 'required|string|max:2000',
-        ]);
-
-        $comment = $post->comments()->create([
-            'user_id' => $request->user()->id,
-            'body' => $validated['body'],
-        ]);
-
-        $comment->load('user');
+        $comment = $commentService->addComment($post, $request->user()->id, $request->validated('body'));
 
         return response()->json([
             'comment' => [
@@ -39,15 +32,11 @@ class CommentController extends Controller
     /**
      * Update an existing comment.
      */
-    public function update(Request $request, Comment $comment): JsonResponse
+    public function update(UpdateCommentRequest $request, Comment $comment, CommentService $commentService): JsonResponse
     {
         $this->authorize('update', $comment);
 
-        $validated = $request->validate([
-            'body' => 'required|string|max:2000',
-        ]);
-
-        $comment->update($validated);
+        $comment = $commentService->updateComment($comment, $request->validated('body'));
 
         return response()->json([
             'comment' => [
@@ -60,11 +49,11 @@ class CommentController extends Controller
     /**
      * Delete a comment.
      */
-    public function destroy(Comment $comment): JsonResponse
+    public function destroy(Comment $comment, CommentService $commentService): JsonResponse
     {
         $this->authorize('delete', $comment);
 
-        $comment->delete();
+        $commentService->deleteComment($comment);
 
         return response()->json(['deleted' => true]);
     }

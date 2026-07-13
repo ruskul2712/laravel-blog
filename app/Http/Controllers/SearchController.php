@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Comment;
 use App\Models\Post;
 use App\Models\User;
+use App\Models\Comment;
+use App\Repositories\SearchRepository;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -15,7 +16,7 @@ class SearchController extends Controller
     /**
      * Full search results page.
      */
-    public function index(Request $request): View
+    public function index(Request $request, SearchRepository $search): View
     {
         $query = trim((string) $request->query('q', ''));
 
@@ -24,23 +25,9 @@ class SearchController extends Controller
         $comments = collect();
 
         if ($query !== '') {
-            $users = User::where('name', 'ilike', "%{$query}%")
-                ->orWhere('email', 'ilike', "%{$query}%")
-                ->limit(20)
-                ->get();
-
-            $posts = Post::with('user')
-                ->where('title', 'ilike', "%{$query}%")
-                ->orWhere('description', 'ilike', "%{$query}%")
-                ->latest()
-                ->limit(20)
-                ->get();
-
-            $comments = Comment::with(['user', 'post'])
-                ->where('body', 'ilike', "%{$query}%")
-                ->latest()
-                ->limit(20)
-                ->get();
+            $users = $search->users($query, 20);
+            $posts = $search->posts($query, 20);
+            $comments = $search->comments($query, 20);
         }
 
         return view('posts.search', compact('query', 'users', 'posts', 'comments'));
@@ -49,7 +36,7 @@ class SearchController extends Controller
     /**
      * Lightweight JSON results for the live header dropdown.
      */
-    public function suggest(Request $request): JsonResponse
+    public function suggest(Request $request, SearchRepository $search): JsonResponse
     {
         $query = trim((string) $request->query('q', ''));
 
@@ -57,9 +44,7 @@ class SearchController extends Controller
             return response()->json(['users' => [], 'posts' => [], 'comments' => []]);
         }
 
-        $users = User::where('name', 'ilike', "%{$query}%")
-            ->limit(5)
-            ->get()
+        $users = $search->users($query, 5)
             ->map(fn (User $user) => [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -68,11 +53,7 @@ class SearchController extends Controller
                 'href' => route('users.show', $user),
             ]);
 
-        $posts = Post::where('title', 'ilike', "%{$query}%")
-            ->orWhere('description', 'ilike', "%{$query}%")
-            ->latest()
-            ->limit(5)
-            ->get()
+        $posts = $search->posts($query, 5)
             ->map(fn (Post $post) => [
                 'id' => $post->id,
                 'title' => $post->title,
@@ -80,11 +61,7 @@ class SearchController extends Controller
                 'href' => route('post.feed').'#post-'.$post->id,
             ]);
 
-        $comments = Comment::with(['user'])
-            ->where('body', 'ilike', "%{$query}%")
-            ->latest()
-            ->limit(5)
-            ->get()
+        $comments = $search->comments($query, 5)
             ->map(fn (Comment $comment) => [
                 'id' => $comment->id,
                 'body' => Str::limit($comment->body, 60),

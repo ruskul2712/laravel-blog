@@ -3,6 +3,8 @@
 namespace App\Repositories;
 
 use App\Models\Post;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 class PostRepository
@@ -18,6 +20,17 @@ class PostRepository
         }
 
         return $query->paginate($perPage);
+    }
+
+    /**
+     * A user's own posts with like/comment counts, newest first.
+     */
+    public function forUser(User $user): Collection
+    {
+        return $user->posts()
+            ->withCount(['likes', 'comments'])
+            ->latest()
+            ->get();
     }
 
     public function findForShow(Post $post): Post

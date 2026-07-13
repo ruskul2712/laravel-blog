@@ -32,7 +32,7 @@
         <nav class="main-nav">
             <a href="/" class="nav-link">Главная</a>
             <a href="/post" class="nav-link">Лента</a>
-            <a href="/hello" class="nav-link">Профиль</a>
+            <a href="{{ route('profile.show') }}" class="nav-link">Профиль</a>
         </nav>
         <div class="header-icons">
             @include('partials.notifications-bell')
@@ -40,7 +40,7 @@
                 <span class="icon-light">🌙</span><span class="icon-dark">☀️</span>
             </button>
             @auth
-                <a href="/hello" class="avatar-btn" title="Мой профиль">{{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 1)) }}</a>
+                <a href="{{ route('profile.show') }}" class="avatar-btn" title="Мой профиль">{{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 1)) }}</a>
             @endauth
             @include('partials.header-auth')
         </div>

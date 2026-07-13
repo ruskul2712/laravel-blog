@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Http\Requests\LoginRequest;
+use App\Http\Requests\RegisterRequest;
 use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 
@@ -23,16 +25,13 @@ class AuthController extends Controller
 
         return redirect('/');
     }
-    public function register(Request $request){
-        $request->validate([
-            'name' => 'required|min:3|max:255',
-            'email' => 'required|email|unique:users|max:255',
-            'password' => 'required|min:6|max:255',
-        ]);
+    public function register(RegisterRequest $request){
+        $validated = $request->validated();
+
         $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
         ]);
 
         Auth::login($user);
@@ -40,16 +39,13 @@ class AuthController extends Controller
         return redirect('/');
     }
 
-    public function login(Request $request)
+    public function login(LoginRequest $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
-        ]);
+        $validated = $request->validated();
 
         if (Auth::attempt([
-            'email' => $request->email,
-            'password' => $request->password,
+            'email' => $validated['email'],
+            'password' => $validated['password'],
         ], $request->boolean('remember'))) {
 
             $request->session()->regenerate();
@@ -63,4 +59,3 @@ class AuthController extends Controller
     }
 
 }
-

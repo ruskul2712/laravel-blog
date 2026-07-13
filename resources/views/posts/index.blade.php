@@ -35,7 +35,7 @@
             @auth
                 <a href="{{ route('post.followingFeed') }}" class="nav-link {{ $onlyFollowing ? 'active' : '' }}">Моя лента</a>
             @endauth
-            <a href="/hello" class="nav-link">Профиль</a>
+            <a href="{{ route('profile.show') }}" class="nav-link">Профиль</a>
         </nav>
         <div class="header-icons">
             <button type="button" class="icon-btn" data-open-modal="modal-new-post" title="Новая публикация">➕</button>
@@ -44,7 +44,7 @@
                 <span class="icon-light">🌙</span><span class="icon-dark">☀️</span>
             </button>
             @auth
-                <a href="/hello" class="avatar-btn" title="Профиль">{{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 1)) }}</a>
+                <a href="{{ route('profile.show') }}" class="avatar-btn" title="Профиль">{{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 1)) }}</a>
             @endauth
             @include('partials.header-auth')
         </div>

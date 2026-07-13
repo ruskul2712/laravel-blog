@@ -18,4 +18,11 @@ class UserRepository
             ->limit($limit)
             ->get();
     }
+
+    public function update(User $user, array $data): User
+    {
+        $user->update($data);
+
+        return $user;
+    }
 }

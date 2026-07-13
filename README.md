@@ -1,58 +1,109 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Laravel Blog — Social Feed
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Pet-проект на Laravel 13: блог/лента в духе Twitter-Instagram гибрида. Делался как учебный проект для подготовки к позиции Junior Laravel-разработчика — с упором не только на фичи, но и на архитектуру, с которой реально работают в коммерческой разработке.
 
-## About Laravel
+## О проекте
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+Это не просто CRUD постов. Помимо базового функционала блога, в проекте реализованы: подписки, лента "только от тех, на кого подписан", сторис (24 часа, как в Instagram), лайки/закладки/репосты, поиск по постам/пользователям/комментариям, система уведомлений, права доступа через Policy и Gate.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Отдельная цель проекта — пройти путь от "рабочего, но всё в контроллере" кода к слоистой архитектуре, которую ожидают увидеть на реальной работе: `Controller → Service → Repository → Eloquent → БД`.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Стек
 
-## Learning Laravel
+- PHP 8.3, Laravel 13
+- PostgreSQL
+- Blade + Tailwind CSS, Vite
+- Eloquent ORM
+- PHPUnit (тесты — на реальном Postgres, не на sqlite-заглушке)
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Функционал
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- Регистрация / вход / выход
+- CRUD постов (с картинкой, категорией, тегами)
+- Комментарии (создание, редактирование, удаление)
+- Лайки, закладки, репосты
+- Подписки (follow/unfollow), лента "только подписки"
+- Сторис (24-часовые, с отметкой "просмотрено")
+- Поиск по постам, пользователям и комментариям
+- Профиль пользователя (свой и чужой), список подписчиков/подписок
+- Уведомления (лайк, новый подписчик)
+- Права доступа: Policy (кто может редактировать/удалять пост и комментарий), Gate (админ-панель)
+- Валидация через Form Request классы
+- Пагинация ленты, загрузка изображений, Soft Deletes
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+## Архитектура
 
-## Agentic Development
+Проект построен по слоям, а не "всё в контроллере":
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```
+HTTP-запрос
+    ↓
+Form Request       — валидация входных данных (StorePostRequest, LoginRequest, ...)
+    ↓
+Controller          — тонкий: принял запрос → вызвал сервис → вернул ответ
+    ↓
+Service             — бизнес-логика: что и в каком порядке должно произойти
+    ↓
+Repository          — единственное место, где есть обращения к Eloquent/БД
+    ↓
+Eloquent Model → PostgreSQL
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Ключевые решения, которые тут применены осознанно, а не "для галочки":
 
-## Contributing
+- **Repository — один на Eloquent-модель** (`PostRepository`, `CommentRepository`, `LikeRepository`, ...). Только доступ к данным, никакой логики.
+- **Service — один на сценарий использования**, а не обязательно один на модель. Например, `PostInteractionService` разом отвечает за лайки, закладки и репосты — потому что это один сценарий "реакция на пост", хотя данные лежат в трёх разных таблицах.
+- **Не каждому контроллеру нужны оба слоя.** Там, где нет реальной бизнес-логики (например, простой вывод чужого профиля), контроллер обращается к Repository напрямую — заводить пустой Service "для симметрии" не имеет смысла.
+- **Policy** (`PostPolicy`, `CommentPolicy`) решают, кто что может делать с постом/комментарием; **Gate** — доступ к админ-панели.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Установка
 
-## Code of Conduct
+```bash
+git clone https://github.com/ruskul2712/laravel-blog.git
+cd laravel-blog
+composer install
+npm install
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+cp .env.example .env
+php artisan key:generate
+```
 
-## Security Vulnerabilities
+В `.env` укажите подключение к PostgreSQL (по умолчанию в `.env.example` стоит sqlite — для этого проекта нужен именно Postgres):
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_DATABASE=laravel
+DB_USERNAME=postgres
+DB_PASSWORD=
+```
 
-## License
+Дальше:
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```bash
+php artisan migrate --seed
+php artisan serve
+npm run dev   # в отдельном терминале, для сборки фронтенда
+```
+
+## Тесты
+
+```bash
+php artisan test
+```
+
+16 тестов, все — на реальном PostgreSQL (отдельная база `laravel_testing`, настраивается через `.env.testing`), а не на sqlite in-memory. Это важно: часть функционала (например, поиск) использует `ilike`, специфичный для Postgres, — прогон на sqlite давал бы ложное "всё ок" там, где в проде было бы падение.
+
+Покрыто: регистрация, логин/логаут, создание поста, Policy (чужой пользователь не может редактировать/удалять чужой пост), комментарии и их права доступа, поиск.
+
+## Известные ограничения / что доделать дальше
+
+Честно, а не только то, что уже хорошо:
+
+- `NotificationController` пока не переведён на Repository/Service — остался с прямыми обращениями к Eloquent, как и весь проект был в начале рефакторинга.
+- В `UserProfileController` есть небольшое дублирование запроса `followingIds` между методами `followers()`/`following()` — тянет на отдельный метод в `FollowRepository`.
+
+## Автор
+
+Учебный проект, сделан в рамках подготовки к позиции Junior Laravel Developer.

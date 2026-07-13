@@ -36,7 +36,7 @@
         <nav class="main-nav">
             <a href="/" class="nav-link active">Главная</a>
             <a href="/post" class="nav-link">Лента</a>
-            <a href="/hello" class="nav-link">Профиль</a>
+            <a href="{{ route('profile.show') }}" class="nav-link">Профиль</a>
         </nav>
         <div class="header-icons">
             <button type="button" class="icon-btn theme-toggle" title="Сменить тему">

@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreStoryRequest;
 use App\Models\Story;
+use App\Services\StoryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -12,20 +14,9 @@ class StoryController extends Controller
     /**
      * Store a newly created story for the current user.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(StoreStoryRequest $request, StoryService $stories): RedirectResponse
     {
-        $validated = $request->validate([
-            'image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
-        ], [
-            'image.required' => 'Выберите фото для истории.',
-            'image.image' => 'Файл должен быть изображением.',
-            'image.mimes' => 'Поддерживаются форматы: JPG, PNG, WEBP, GIF.',
-            'image.max' => 'Максимальный размер файла — 5 МБ.',
-        ]);
-
-        $request->user()->stories()->create([
-            'image' => $request->file('image')->store('stories', 'public'),
-        ]);
+        $stories->createStory($request->user(), $request->file('image'));
 
         return redirect()->route('post.feed')->with('status', 'История опубликована 🎉');
     }
@@ -33,9 +24,9 @@ class StoryController extends Controller
     /**
      * Record that the current user has viewed the given story.
      */
-    public function markViewed(Request $request, Story $story): JsonResponse
+    public function markViewed(Request $request, Story $story, StoryService $stories): JsonResponse
     {
-        $story->viewers()->syncWithoutDetaching([$request->user()->id]);
+        $stories->markViewed($story, $request->user()->id);
 
         return response()->json(['viewed' => true]);
     }

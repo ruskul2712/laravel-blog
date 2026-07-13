@@ -84,6 +84,7 @@ class User extends Authenticatable
     public function following(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'follows', 'follower_id', 'followed_id')
+            ->using(Follow::class)
             ->withTimestamps();
     }
 
@@ -93,6 +94,7 @@ class User extends Authenticatable
     public function followers(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'follows', 'followed_id', 'follower_id')
+            ->using(Follow::class)
             ->withTimestamps();
     }
 
