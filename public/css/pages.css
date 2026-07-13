@@ -685,6 +685,17 @@
     color: var(--accent);
 }
 
+.post-category-badge {
+    display: inline-block;
+    margin-right: 8px;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
 /* Comments */
 .post-comments {
     padding: 10px 14px 4px;

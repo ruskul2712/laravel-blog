@@ -31,7 +31,10 @@
         @include('partials.search-box')
         <nav class="main-nav">
             <a href="/" class="nav-link">Главная</a>
-            <a href="/post" class="nav-link active">Лента</a>
+            <a href="/post" class="nav-link {{ $onlyFollowing ? '' : 'active' }}">Лента</a>
+            @auth
+                <a href="{{ route('post.followingFeed') }}" class="nav-link {{ $onlyFollowing ? 'active' : '' }}">Моя лента</a>
+            @endauth
             <a href="/hello" class="nav-link">Профиль</a>
         </nav>
         <div class="header-icons">
@@ -125,7 +128,7 @@
                                 Пользователь
                             @endif
                         </div>
-                        <div class="post-time">{{ $post->created_at->diffForHumans() }}</div>
+                        <div class="post-time"><a href="{{ route('posts.show', $post) }}">{{ $post->created_at->diffForHumans() }}</a></div>
                     </div>
 
                     <div class="post-menu-wrap">
@@ -166,6 +169,17 @@
                         @endif
                     </span><span class="cap-text"><strong class="cap-title">{{ $post->title }}</strong> {{ $post->description }}</span>
                 </div>
+
+                @if($post->category || $post->tags->isNotEmpty())
+                    <div class="post-tags">
+                        @if($post->category)
+                            <span class="post-category-badge">{{ $post->category->name }}</span>
+                        @endif
+                        @foreach($post->tags as $tag)
+                            #{{ $tag->name }}
+                        @endforeach
+                    </div>
+                @endif
 
                 <div class="post-comments">
                     @forelse($post->comments as $comment)
@@ -211,8 +225,13 @@
         @empty
             <div class="empty-state">
                 <div class="empty-emoji">📝</div>
-                <h3>Пока нет публикаций</h3>
-                <p>Станьте первым — поделитесь фото прямо сейчас.</p>
+                @if($onlyFollowing)
+                    <h3>В вашей ленте пока пусто</h3>
+                    <p>Подпишитесь на кого-нибудь, чтобы видеть их публикации здесь.</p>
+                @else
+                    <h3>Пока нет публикаций</h3>
+                    <p>Станьте первым — поделитесь фото прямо сейчас.</p>
+                @endif
             </div>
         @endforelse
         </div>
@@ -272,6 +291,19 @@
                 <div class="field">
                     <textarea id="composer-caption" name="description" placeholder=" " rows="3"></textarea>
                     <label>Подпись к публикации</label>
+                </div>
+                <div class="field">
+                    <select id="composer-category" name="category_id">
+                        <option value="">Без категории</option>
+                        @foreach($categories as $category)
+                            <option value="{{ $category->id }}">{{ $category->name }}</option>
+                        @endforeach
+                    </select>
+                    <label>Категория</label>
+                </div>
+                <div class="field">
+                    <input type="text" id="composer-tags" name="tags" placeholder=" ">
+                    <label>Теги через запятую</label>
                 </div>
             </div>
             <div class="modal-actions">

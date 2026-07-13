@@ -3,10 +3,14 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Models\Category;
 use App\Models\Post;
 use App\Models\Story;
+use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Support\Facades\Storage;
+use App\Http\Requests\StorePostRequest;
+use App\Http\Requests\UpdatePostRequest;
 
 
 
@@ -17,23 +21,44 @@ class PostController extends Controller
      */
     public function index(Request $request)
     {
-        $posts = Post::with(['user', 'comments.user'])
-            ->withCount(['likes', 'comments', 'bookmarks', 'reposts'])
-            ->latest()
-            ->get();
+        return view('posts.index', $this->buildFeedData($request, onlyFollowing: false));
+    }
 
+    /**
+     * "Моя лента" — show posts only from users the current user follows.
+     */
+    public function followingFeed(Request $request)
+    {
+        return view('posts.index', $this->buildFeedData($request, onlyFollowing: true));
+    }
+
+    /**
+     * Build all the data the posts.index view needs, optionally restricted
+     * to posts from users the current user follows.
+     */
+    private function buildFeedData(Request $request, bool $onlyFollowing): array
+    {
         $currentUser = $request->user();
+
+        $followingIds = $currentUser ? $currentUser->following()->pluck('users.id')->all() : [];
+
+        $postsQuery = Post::with(['user', 'comments.user', 'category', 'tags'])
+            ->withCount(['likes', 'comments', 'bookmarks', 'reposts'])
+            ->latest();
+
+        if ($onlyFollowing) {
+            $postsQuery->whereIn('user_id', $followingIds);
+        }
+
+        $posts = $postsQuery->get();
 
         $likedPostIds = $currentUser ? $currentUser->likes()->pluck('post_id')->all() : [];
         $bookmarkedPostIds = $currentUser ? $currentUser->bookmarks()->pluck('post_id')->all() : [];
         $repostedPostIds = $currentUser ? $currentUser->reposts()->pluck('post_id')->all() : [];
 
-        $followingIds = [];
         $suggestedUsers = collect();
 
         if ($currentUser) {
-            $followingIds = $currentUser->following()->pluck('users.id')->all();
-
             $suggestedUsers = User::where('id', '!=', $currentUser->id)
                 ->whereNotIn('id', $followingIds)
                 ->latest()
@@ -43,7 +68,9 @@ class PostController extends Controller
 
         [$ownStoryGroup, $otherStoryGroups] = $this->buildStoryGroups($currentUser);
 
-        return view('posts.index', compact(
+        $categories = Category::orderBy('name')->get();
+
+        return compact(
             'posts',
             'likedPostIds',
             'bookmarkedPostIds',
@@ -51,8 +78,10 @@ class PostController extends Controller
             'followingIds',
             'suggestedUsers',
             'ownStoryGroup',
-            'otherStoryGroups'
-        ));
+            'otherStoryGroups',
+            'categories',
+            'onlyFollowing'
+        );
     }
 
     /**
@@ -98,63 +127,86 @@ class PostController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(StorePostRequest $request)
     {
-        $validated = $request->validate([
-            'title' => 'required|max:255',
-            'description' => 'required',
-            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
-        ], [
-            'image.image' => 'Файл должен быть изображением.',
-            'image.mimes' => 'Поддерживаются форматы: JPG, PNG, WEBP, GIF.',
-            'image.max' => 'Максимальный размер файла — 5 МБ.',
-        ]);
+        $validated = $request->validated();
 
-        if ($request->hasFile('image')) {
-            $validated['image'] = $request->file('image')->store('posts', 'public');
-        }
+        $tagNames = $this->parseTagNames($validated['tags'] ?? null);
+        unset($validated['tags']);
 
         $validated['user_id'] = $request->user()->id;
 
-        Post::create($validated);
+        if ($request->hasFile('image')) {
+            $validated['image'] = $request->file('image')->store('posts', 'public');
+        } else {
+            unset($validated['image']);
+        }
 
-        return redirect()->route('post.feed')->with('status', 'Публикация создана 🎉');
+        $post = Post::create($validated);
+
+        if (! empty($tagNames)) {
+            $tagIds = collect($tagNames)->map(
+                fn (string $name) => Tag::firstOrCreate(['name' => $name])->id
+            );
+            $post->tags()->sync($tagIds);
+        }
+
+        return redirect()->route('post.feed')->with('status', 'Пост опубликован 🎉');
+    }
+
+    /**
+     * Split a comma-separated "tags" input into a clean list of unique names.
+     */
+    private function parseTagNames(?string $tags): array
+    {
+        if (! $tags) {
+            return [];
+        }
+
+        return collect(explode(',', $tags))
+            ->map(fn (string $tag) => trim($tag))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 
 
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show(Request $request, Post $post)
     {
-        //
+        $post->load(['user', 'category', 'tags', 'comments.user']);
+        $post->loadCount(['likes', 'comments', 'bookmarks', 'reposts']);
+
+        $currentUser = $request->user();
+
+        $isLiked = $currentUser ? $currentUser->likes()->where('post_id', $post->id)->exists() : false;
+        $isBookmarked = $currentUser ? $currentUser->bookmarks()->where('post_id', $post->id)->exists() : false;
+        $isReposted = $currentUser ? $currentUser->reposts()->where('post_id', $post->id)->exists() : false;
+
+        return view('posts.show', compact('post', 'isLiked', 'isBookmarked', 'isReposted'));
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
-    {
-        //
+    public function edit(Post $post){
+        $this->authorize('update', $post);
+        return view('posts.edit', compact('post'));
     }
-
     /**
      * Update the specified resource in storage.
      *
      * There is no login/authorization system yet, so anyone can edit
      * any post — that restriction is intentionally left out for now.
      */
-    public function update(Request $request, Post $post)
+    public function update(UpdatePostRequest $request, Post $post)
     {
-        $validated = $request->validate([
-            'title' => 'required|max:255',
-            'description' => 'required',
-            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
-        ], [
-            'image.image' => 'Файл должен быть изображением.',
-            'image.mimes' => 'Поддерживаются форматы: JPG, PNG, WEBP, GIF.',
-            'image.max' => 'Максимальный размер файла — 5 МБ.',
-        ]);
+        $this->authorize('update', $post);
+
+        $validated = $request->validated();
 
         if ($request->hasFile('image')) {
             if ($post->image) {
@@ -183,6 +235,8 @@ class PostController extends Controller
      */
     public function destroy(Post $post)
     {
+        $this->authorize('delete', $post);
+
         $post->delete();
 
         return response()->json(['deleted' => true]);

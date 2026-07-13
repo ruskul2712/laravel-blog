@@ -31,6 +31,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
 
     Route::resource('posts', PostController::class)->except(['index']);
+    Route::get('/feed', [PostController::class, 'followingFeed'])->name('post.followingFeed');
 
     Route::post('/posts/{post}/like', [PostInteractionController::class, 'toggleLike'])->name('posts.like');
     Route::post('/posts/{post}/bookmark', [PostInteractionController::class, 'toggleBookmark'])->name('posts.bookmark');
