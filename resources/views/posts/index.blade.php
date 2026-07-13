@@ -238,6 +238,8 @@
                 @endif
             </div>
         @endforelse
+
+        {{ $posts->links() }}
         </div>
     </div>
 

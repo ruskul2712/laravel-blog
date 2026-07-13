@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\PostService;
 use Illuminate\Http\Request;
 use App\Models\Category;
 use App\Models\Post;
@@ -27,62 +28,16 @@ class PostController extends Controller
     /**
      * "Моя лента" — show posts only from users the current user follows.
      */
-    public function followingFeed(Request $request)
+    public function followingFeed(Request $request, PostService $postService)
     {
-        return view('posts.index', $this->buildFeedData($request, onlyFollowing: true));
+        return view('posts.index', $postService->buildFeedData($request, onlyFollowing: true));
     }
 
     /**
      * Build all the data the posts.index view needs, optionally restricted
      * to posts from users the current user follows.
      */
-    private function buildFeedData(Request $request, bool $onlyFollowing): array
-    {
-        $currentUser = $request->user();
 
-        $followingIds = $currentUser ? $currentUser->following()->pluck('users.id')->all() : [];
-
-        $postsQuery = Post::with(['user', 'comments.user', 'category', 'tags'])
-            ->withCount(['likes', 'comments', 'bookmarks', 'reposts'])
-            ->latest();
-
-        if ($onlyFollowing) {
-            $postsQuery->whereIn('user_id', $followingIds);
-        }
-
-        $posts = $postsQuery->get();
-
-        $likedPostIds = $currentUser ? $currentUser->likes()->pluck('post_id')->all() : [];
-        $bookmarkedPostIds = $currentUser ? $currentUser->bookmarks()->pluck('post_id')->all() : [];
-        $repostedPostIds = $currentUser ? $currentUser->reposts()->pluck('post_id')->all() : [];
-
-        $suggestedUsers = collect();
-
-        if ($currentUser) {
-            $suggestedUsers = User::where('id', '!=', $currentUser->id)
-                ->whereNotIn('id', $followingIds)
-                ->latest()
-                ->limit(3)
-                ->get();
-        }
-
-        [$ownStoryGroup, $otherStoryGroups] = $this->buildStoryGroups($currentUser);
-
-        $categories = Category::orderBy('name')->get();
-
-        return compact(
-            'posts',
-            'likedPostIds',
-            'bookmarkedPostIds',
-            'repostedPostIds',
-            'followingIds',
-            'suggestedUsers',
-            'ownStoryGroup',
-            'otherStoryGroups',
-            'categories',
-            'onlyFollowing'
-        );
-    }
 
     /**
      * Group active (< 24h old) stories by author, splitting the current
