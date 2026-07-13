@@ -147,10 +147,12 @@
                                 <button type="button" class="btn btn-ghost btn-sm comment-cancel-btn">Отмена</button>
                             </form>
                         </div>
-                        <div class="comment-tools">
-                            <button type="button" class="comment-edit-btn" title="Редактировать">✏️</button>
-                            <button type="button" class="comment-delete-btn" title="Удалить">🗑️</button>
-                        </div>
+                        @can('update', $comment)
+                            <div class="comment-tools">
+                                <button type="button" class="comment-edit-btn" title="Редактировать">✏️</button>
+                                <button type="button" class="comment-delete-btn" title="Удалить">🗑️</button>
+                            </div>
+                        @endcan
                     </div>
                 @empty
                     <p class="no-comments-hint">Комментариев пока нет — будьте первым.</p>
